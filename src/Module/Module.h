@@ -17,7 +17,7 @@
 
 #include "../Config.h"
 #include "../Debug.h"
-#include "../StringUtils.h"
+#include "../XeWeStringUtils.h"
 
 using namespace std;
 using namespace xewe::str;
@@ -97,7 +97,6 @@ public:
     virtual string              status                      (const bool verbose=false)      const;
     virtual bool                is_enabled                  (const bool verbose=false)      const;
     virtual bool                is_disabled                 (const bool verbose=false)      const;
-    virtual bool                init_setup_complete         (const bool verbose=false)      const;
 
     virtual void                add_requirement             (Module& other);
 
