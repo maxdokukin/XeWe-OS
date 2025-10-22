@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Push binary, manifest, and optional build_notes.txt to 'binaries' branch.
-# Preserves all earlier artifacts by starting from the current binaries tree.
+# Push binary, manifest, optional build_notes.txt, and builds/.version_state to 'binaries' branch.
+# Preserves earlier artifacts by starting from the current binaries tree.
 # Never touches your worktree or current branch.
 
 PROJECT_ROOT=""
@@ -31,7 +31,10 @@ done
 BIN_FILE="$(find "${TARGET_DIR}/binary" -maxdepth 1 -type f -name "*.bin" | head -n1 || true)"
 MANIFEST_FILE="$(find "${TARGET_DIR}" -maxdepth 2 -type f -name "manifest.json" | head -n1 || true)"
 NOTES_FILE="${TARGET_DIR}/build_notes.txt"
+VERSION_STATE_FILE="${PROJECT_ROOT}/build/builds/.version_state"
+
 [[ -n "${BIN_FILE}" && -f "${MANIFEST_FILE}" ]] || { echo "artifacts missing"; exit 0; }
+[[ -f "${VERSION_STATE_FILE}" ]] || { echo ".version_state missing"; exit 2; }
 
 # Ensure files are under repo; capture relative paths.
 case "${BIN_FILE}" in
@@ -49,10 +52,15 @@ if [[ -f "${NOTES_FILE}" && -s "${NOTES_FILE}" ]]; then
     *) echo "notes not under repo"; exit 2 ;;
   esac
 fi
+case "${VERSION_STATE_FILE}" in
+  "${PROJECT_ROOT}/"*) REL_VER_STATE="${VERSION_STATE_FILE#"${PROJECT_ROOT}/"}" ;;
+  *) echo ".version_state not under repo"; exit 2 ;;
+esac
 
 # Pre-store blobs.
 BIN_BLOB="$(git -C "${PROJECT_ROOT}" hash-object -w -- "${BIN_FILE}")"
 MAN_BLOB="$(git -C "${PROJECT_ROOT}" hash-object -w -- "${MANIFEST_FILE}")"
+VER_STATE_BLOB="$(git -C "${PROJECT_ROOT}" hash-object -w -- "${VERSION_STATE_FILE}")"
 if [[ -n "${REL_NOTES}" ]]; then
   NOTES_BLOB="$(git -C "${PROJECT_ROOT}" hash-object -w -- "${NOTES_FILE}")"
 fi
@@ -84,6 +92,7 @@ commit_from_tree() {
 
   git -C "${PROJECT_ROOT}" update-index --add --cacheinfo 100644 "${BIN_BLOB}" "${REL_BIN}"
   git -C "${PROJECT_ROOT}" update-index --add --cacheinfo 100644 "${MAN_BLOB}" "${REL_MAN}"
+  git -C "${PROJECT_ROOT}" update-index --add --cacheinfo 100644 "${VER_STATE_BLOB}" "${REL_VER_STATE}"
   if [[ -n "${REL_NOTES}" ]]; then
     git -C "${PROJECT_ROOT}" update-index --add --cacheinfo 100644 "${NOTES_BLOB}" "${REL_NOTES}"
   fi
