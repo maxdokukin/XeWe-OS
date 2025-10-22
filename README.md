@@ -29,7 +29,7 @@
 
 ### To communicate with the board, you can use Serial Port
   - Go to Tools -> Serial Monitor
-  - Set 115200baud rate
+  - Set 9600 baud rate
   - Disconnect and connect the board to reload it
 
 ### Command Line Tool Control (CLI)
