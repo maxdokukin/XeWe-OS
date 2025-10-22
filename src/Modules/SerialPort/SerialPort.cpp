@@ -415,3 +415,8 @@ bool SerialPort::get_yn(string_view prompt,
     set_success(false);
     return default_value;
 }
+
+void SerialPort::write_line_crlf(string_view s) {
+    Serial.write(reinterpret_cast<const uint8_t*>(s.data()), s.size());
+    Serial.write(reinterpret_cast<const uint8_t*>(kCRLF), 2);
+}

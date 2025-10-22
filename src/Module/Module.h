@@ -37,17 +37,17 @@ public:
 using command_function_t = function<void(string args)>;
 
 struct Command {
-    string                 name;
-    string                 description;
-    string                 sample_usage;
-    size_t                 arg_count;
+    string                      name;
+    string                      description;
+    string                      sample_usage;
+    size_t                      arg_count;
     command_function_t          function;
 };
 
 struct CommandsGroup {
-    string                 name;
-    string                 group;
-    span<const Command>    commands;
+    string                      name;
+    string                      group;
+    span<const Command>         commands;
 };
 
 class Module {
@@ -68,8 +68,7 @@ public:
       , has_cli_commands        (has_cli_commands)
       , enabled                 (true)
     {
-        if (has_cli_commands)
-            register_generic_commands();
+        if (has_cli_commands)   register_generic_commands();
     }
 
     virtual ~Module                                         () noexcept                     = default;
