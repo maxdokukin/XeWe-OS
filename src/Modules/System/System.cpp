@@ -46,21 +46,13 @@ System::System(ModuleController& controller)
 
 void System::begin_routines_required (const ModuleConfig& cfg) {
     controller.serial_port.print_spacer();
-    controller.serial_port.print_centered("XeWe LED OS");
+    controller.serial_port.print_centered("XeWe OS");
     controller.serial_port.print_spacer();
-    controller.serial_port.print_centered("Version 2.0");
-    controller.serial_port.print_centered("https://github.com/maxdokukin/XeWe-LED-OS");
+    controller.serial_port.print_centered(string("Version ") + TO_STRING(BUILD_VERSION));
+    controller.serial_port.print_centered("https://github.com/maxdokukin/XeWe-OS");
+    controller.serial_port.print_centered(string("Build Timestamp ") + TO_STRING(BUILD_TIMESTAMP));
     controller.serial_port.print_spacer();
-    controller.serial_port.print_centered("ESP32 OS to control ");
-    controller.serial_port.print_centered("addressable LED lights");
-    controller.serial_port.print_spacer();
-    controller.serial_port.print_centered("Communication supported:");
-    controller.serial_port.print_centered("");
-    controller.serial_port.print_centered("Alexa");
-    controller.serial_port.print_centered("HomeKit");
-    controller.serial_port.print_centered("Web Browser");
-    controller.serial_port.print_centered("Serial Port CLI");
-    controller.serial_port.print_centered("Physical Buttons");
+    controller.serial_port.print_centered("Lightweight ESP32 OS");
     controller.serial_port.print_spacer();
 }
 

@@ -14,7 +14,7 @@
 #pragma once
 
 #include "../../Module/Module.h"
-//#include "../../../Config.h"
+#include "../../build_info.h"
 //#include "../../../Debug.h"
 
 

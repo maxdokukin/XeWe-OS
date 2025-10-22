@@ -9,7 +9,7 @@ set -euo pipefail
 # Prefers Arduino CLI monitor; falls back to Python's miniterm, then to screen.
 
 ESP_PORT=""
-ESP_BAUD="9600"   # typical sketch default; can be overridden
+ESP_BAUD="115200"   # adjust to your sketch default if needed
 
 usage() {
   cat <<'EOF'
@@ -29,21 +29,21 @@ done
 [[ -z "${ESP_PORT}" ]] && { echo "❌ Missing -p|--port"; exit 1; }
 
 if command -v arduino-cli >/dev/null 2>&1; then
-  echo "🖥️  Opening arduino-cli monitor on ${ESP_PORT} @ ${ESP_BAUD} (Ctrl-C to exit)…"
+  echo "🖥️  arduino-cli monitor ${ESP_PORT} @ ${ESP_BAUD} (Ctrl-C to exit)…"
   exec arduino-cli monitor -p "${ESP_PORT}" -c "${ESP_BAUD}"
 fi
 
-if python - <<'PYCHK' >/dev/null 2>&1
+if python3 - <<'PYCHK' >/dev/null 2>&1
 import importlib.util, sys
 sys.exit(0 if importlib.util.find_spec("serial.tools.miniterm") else 1)
 PYCHK
 then
-  echo "🖥️  Opening Python miniterm on ${ESP_PORT} @ ${ESP_BAUD} (Ctrl-] then q to quit)…"
-  exec python -m serial.tools.miniterm "${ESP_PORT}" "${ESP_BAUD}"
+  echo "🖥️  Python miniterm ${ESP_PORT} @ ${ESP_BAUD} (Ctrl-] then q to quit)…"
+  exec python3 -m serial.tools.miniterm "${ESP_PORT}" "${ESP_BAUD}"
 fi
 
 if command -v screen >/dev/null 2>&1; then
-  echo "🖥️  Opening screen on ${ESP_PORT} @ ${ESP_BAUD} (Ctrl-A then K to quit)…"
+  echo "🖥️  screen ${ESP_PORT} @ ${ESP_BAUD} (Ctrl-A then K to quit)…"
   exec screen "${ESP_PORT}" "${ESP_BAUD}"
 fi
 
