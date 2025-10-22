@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Publish exactly two artifacts to branch "binaries" without touching the
-# current branch, working tree, or index. No new files are created in the repo.
+# Push binary, manifest, and optional build_notes.txt to 'binaries' branch.
+# Preserves all earlier artifacts by starting from the current binaries tree.
+# Never touches your worktree or current branch.
 
 PROJECT_ROOT=""
 TARGET_DIR=""
 VERSION_STR=""
+REMOTE="origin"
+BRANCH="binaries"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -27,9 +30,10 @@ done
 # Locate artifacts.
 BIN_FILE="$(find "${TARGET_DIR}/binary" -maxdepth 1 -type f -name "*.bin" | head -n1 || true)"
 MANIFEST_FILE="$(find "${TARGET_DIR}" -maxdepth 2 -type f -name "manifest.json" | head -n1 || true)"
+NOTES_FILE="${TARGET_DIR}/build_notes.txt"
 [[ -n "${BIN_FILE}" && -f "${MANIFEST_FILE}" ]] || { echo "artifacts missing"; exit 0; }
 
-# Ensure paths are inside repo and capture relative paths.
+# Ensure files are under repo; capture relative paths.
 case "${BIN_FILE}" in
   "${PROJECT_ROOT}/"*) REL_BIN="${BIN_FILE#"${PROJECT_ROOT}/"}" ;;
   *) echo "binary not under repo"; exit 2 ;;
@@ -38,35 +42,77 @@ case "${MANIFEST_FILE}" in
   "${PROJECT_ROOT}/"*) REL_MAN="${MANIFEST_FILE#"${PROJECT_ROOT}/"}" ;;
   *) echo "manifest not under repo"; exit 2 ;;
 esac
-
-# Get base commit for binaries branch.
-git -C "${PROJECT_ROOT}" fetch origin binaries >/dev/null 2>&1 || true
-if git -C "${PROJECT_ROOT}" ls-remote --exit-code --heads origin binaries >/dev/null 2>&1; then
-  BASE_COMMIT="$(git -C "${PROJECT_ROOT}" rev-parse origin/binaries^{commit})"
-else
-  git -C "${PROJECT_ROOT}" fetch origin >/dev/null 2>&1 || true
-  BASE_COMMIT="$(git -C "${PROJECT_ROOT}" rev-parse HEAD)"
+REL_NOTES=""
+if [[ -f "${NOTES_FILE}" && -s "${NOTES_FILE}" ]]; then
+  case "${NOTES_FILE}" in
+    "${PROJECT_ROOT}/"*) REL_NOTES="${NOTES_FILE#"${PROJECT_ROOT}/"}" ;;
+    *) echo "notes not under repo"; exit 2 ;;
+  esac
 fi
-BASE_TREE="$(git -C "${PROJECT_ROOT}" rev-parse "${BASE_COMMIT}^{tree}")"
 
-# Use a separate temporary index. Do not touch user index or worktree.
+# Pre-store blobs.
+BIN_BLOB="$(git -C "${PROJECT_ROOT}" hash-object -w -- "${BIN_FILE}")"
+MAN_BLOB="$(git -C "${PROJECT_ROOT}" hash-object -w -- "${MANIFEST_FILE}")"
+if [[ -n "${REL_NOTES}" ]]; then
+  NOTES_BLOB="$(git -C "${PROJECT_ROOT}" hash-object -w -- "${NOTES_FILE}")"
+fi
+
+# Temp index; never touch user index or worktree.
 INDEX_FILE="$(mktemp)"
 cleanup() { rm -f "${INDEX_FILE}"; }
 trap cleanup EXIT
 export GIT_INDEX_FILE="${INDEX_FILE}"
 
-# Start from base tree, then replace only the two paths.
-git -C "${PROJECT_ROOT}" read-tree "${BASE_TREE}"
+get_remote_tip() {
+  git -C "${PROJECT_ROOT}" fetch "${REMOTE}" "${BRANCH}" >/dev/null 2>&1 || true
+  if git -C "${PROJECT_ROOT}" ls-remote --exit-code --heads "${REMOTE}" "${BRANCH}" >/dev/null 2>&1; then
+    git -C "${PROJECT_ROOT}" rev-parse "refs/remotes/${REMOTE}/${BRANCH}^{commit}"
+    return 0
+  fi
+  return 1
+}
 
-BIN_BLOB="$(git -C "${PROJECT_ROOT}" hash-object -w -- "${BIN_FILE}")"
-MAN_BLOB="$(git -C "${PROJECT_ROOT}" hash-object -w -- "${MANIFEST_FILE}")"
+commit_from_tree() {
+  local parent_commit="$1"
+  if [[ -n "${parent_commit}" ]]; then
+    local base_tree
+    base_tree="$(git -C "${PROJECT_ROOT}" rev-parse "${parent_commit}^{tree}")"
+    git -C "${PROJECT_ROOT}" read-tree "${base_tree}"         # start from existing binaries tree
+  else
+    git -C "${PROJECT_ROOT}" read-tree --empty                # first commit only
+  fi
 
-git -C "${PROJECT_ROOT}" update-index --add --cacheinfo 100644 "${BIN_BLOB}" "${REL_BIN}"
-git -C "${PROJECT_ROOT}" update-index --add --cacheinfo 100644 "${MAN_BLOB}" "${REL_MAN}"
+  git -C "${PROJECT_ROOT}" update-index --add --cacheinfo 100644 "${BIN_BLOB}" "${REL_BIN}"
+  git -C "${PROJECT_ROOT}" update-index --add --cacheinfo 100644 "${MAN_BLOB}" "${REL_MAN}"
+  if [[ -n "${REL_NOTES}" ]]; then
+    git -C "${PROJECT_ROOT}" update-index --add --cacheinfo 100644 "${NOTES_BLOB}" "${REL_NOTES}"
+  fi
 
-NEW_TREE="$(git -C "${PROJECT_ROOT}" write-tree)"
-MSG="Version ${VERSION_STR} is compiled and uploaded succesfully."
-NEW_COMMIT="$(git -C "${PROJECT_ROOT}" commit-tree "${NEW_TREE}" -p "${BASE_COMMIT}" -m "${MSG}")"
+  local new_tree msg new_commit
+  new_tree="$(git -C "${PROJECT_ROOT}" write-tree)"
+  msg="binaries: ${VERSION_STR}"
+  if [[ -n "${parent_commit}" ]]; then
+    new_commit="$(git -C "${PROJECT_ROOT}" commit-tree "${new_tree}" -p "${parent_commit}" -m "${msg}")"
+  else
+    new_commit="$(git -C "${PROJECT_ROOT}" commit-tree "${new_tree}" -m "${msg}")"
+  fi
+  printf "%s" "${new_commit}"
+}
 
-# Push commit to binaries branch without checking it out.
-git -C "${PROJECT_ROOT}" push origin "${NEW_COMMIT}:refs/heads/binaries"
+# Push with retries on race.
+for _ in {1..6}; do
+  if REMOTE_TIP="$(get_remote_tip)"; then
+    NEW_COMMIT="$(commit_from_tree "${REMOTE_TIP}")"
+  else
+    NEW_COMMIT="$(commit_from_tree "")"  # root commit
+  fi
+
+  if git -C "${PROJECT_ROOT}" push "${REMOTE}" "${NEW_COMMIT}:refs/heads/${BRANCH}"; then
+    echo "pushed ${VERSION_STR} to ${BRANCH} @ ${NEW_COMMIT}"
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "push failed: non-fast-forward after retries"
+exit 1

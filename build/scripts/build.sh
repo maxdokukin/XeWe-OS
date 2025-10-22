@@ -47,6 +47,7 @@ MANIFEST_NAME=""
 FQBN_EXTRA_OPTS=""
 DO_MONITOR=1
 COMPILE_ONLY=0
+BUILD_NOTES=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -72,7 +73,7 @@ done
 BUILD_ROOT="${PROJECT_ROOT}/build"
 BUILDS_DIR="${BUILD_ROOT}/builds"
 WORK_DIR="${BUILDS_DIR}/cache"         # shared incremental work dir
-STATE_FILE="${BUILD_ROOT}/.version_state"
+STATE_FILE="${BUILD_ROOT}/builds/.version_state"
 DEFAULT_VENV="${PROJECT_ROOT}/build/tools/venv"
 [[ -z "${VENV_DIR}" ]] && [[ -d "${DEFAULT_VENV}" ]] && VENV_DIR="${DEFAULT_VENV}"
 
@@ -124,6 +125,10 @@ TS_ISO="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 CHIP_FAMILY="$(chip_to_family_str "${ESP_CHIP}")"
 TARGET_DIR_NAME="${TS_SHORT}-${VERSION_NEXT}-${CHIP_FAMILY}-${PROJECT_NAME}"
 TARGET_DIR="${BUILDS_DIR}/${TARGET_DIR_NAME}"
+
+# ---------- Prompt for build notes (before build begins) ----------
+echo -n "✍️  Build notes (optional, press Enter to skip): "
+IFS= read -r BUILD_NOTES || true
 
 # ---------- Generate src/build_info.h BEFORE compile ----------
 BUILD_INFO_H="${PROJECT_ROOT}/src/build_info.h"
@@ -179,6 +184,12 @@ echo "🧱 Compile → ${TARGET_DIR_NAME}"
 
 # Maintain 'latest' symlink under builds/ (points to this compile result)
 ln -sfn "${TARGET_DIR}" "${BUILDS_DIR}/latest"
+
+# ---------- Persist build notes ----------
+if [[ -n "${BUILD_NOTES//[[:space:]]/}" ]]; then
+  printf "%s\n" "${BUILD_NOTES}" > "${TARGET_DIR}/build_notes.txt"
+  echo "📝 Wrote ${TARGET_DIR}/build_notes.txt"
+fi
 
 # ---------- Optional upload ----------
 if [[ "${DO_UPLOAD}" -eq 1 ]]; then
