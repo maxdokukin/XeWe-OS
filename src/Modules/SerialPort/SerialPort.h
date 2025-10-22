@@ -35,7 +35,7 @@ public:
                uint16_t message_width = 0,    // 0 => no target width (no wrapping/padding field)
                uint16_t margin_l      = 0,
                uint16_t margin_r      = 0,
-               string_view end        = xewe::str::kCRLF);
+               string_view end        = kCRLF);
 
     void printf(char edge_character,
                 char text_align,

@@ -47,13 +47,13 @@ System::System(ModuleController& controller)
 void System::begin_routines_required (const ModuleConfig& cfg) {
     controller.serial_port.print_header(
         string("XeWe OS") +
-        string("\\sep") +
-        string("Version ") + TO_STRING(BUILD_VERSION) + "\n" +
-        string("https://github.com/maxdokukin/XeWe-OS") + "\n" +
-        string("Build Timestamp ") + TO_STRING(BUILD_TIMESTAMP) + "\n" +
-        string("\\sep") +
-        string("Lightweight ESP32 OS") + "\n",
-        50
+        "\\sep" +
+        "Lightweight ESP32 OS" +
+        "\\sep" +
+        "https://github.com/maxdokukin/XeWe-OS" +
+        "\\sep" +
+        "Version " + TO_STRING(BUILD_VERSION) + "\n" +
+        "Build Timestamp " + TO_STRING(BUILD_TIMESTAMP)
     );
 
     // controller.serial_port.print_spacer();

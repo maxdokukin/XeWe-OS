@@ -17,7 +17,7 @@
 #include <limits>
 #include <type_traits>
 
-using xewe::str::kCRLF;
+using kCRLF;
 
 // -------------------------------------------------------------------------------------------------
 // Module lifecycle
@@ -80,7 +80,7 @@ void SerialPort::println_raw(string_view msg) {
 void SerialPort::printf_raw(const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    std::string out = xewe::str::vformat(fmt, ap);
+    std::string out = vformat(fmt, ap);
     va_end(ap);
     if (!out.empty()) {
         Serial.write(reinterpret_cast<const uint8_t*>(out.data()), out.size());
@@ -95,21 +95,21 @@ void SerialPort::print(string_view message,
                        uint16_t margin_r,
                        string_view end) {
     // Split incoming by '\n', then optionally wrap each "line" to message_width.
-    auto lines_sv = xewe::str::split_lines_sv(message, '\n');
+    auto lines_sv = split_lines_sv(message, '\n');
     const bool use_wrap = (message_width > 0);
 
     // We'll print CRLF between lines; on the very last emission, use 'end'.
     for (size_t i = 0; i < lines_sv.size(); ++i) {
         std::string base_line(lines_sv[i]);
-        xewe::str::rtrim_cr(base_line);
+        rtrim_cr(base_line);
 
         std::vector<std::string> chunks = use_wrap
-                                          ? xewe::str::wrap_fixed(base_line, message_width)
+                                          ? wrap_fixed(base_line, message_width)
                                           : std::vector<std::string>{base_line};
 
         for (size_t j = 0; j < chunks.size(); ++j) {
             const bool is_last = (i == lines_sv.size() - 1) && (j == chunks.size() - 1);
-            std::string out = xewe::str::compose_box_line(
+            std::string out = compose_box_line(
                 chunks[j], edge_character, message_width, margin_l, margin_r, text_align);
 
             Serial.write(reinterpret_cast<const uint8_t*>(out.data()), out.size());
@@ -128,7 +128,7 @@ void SerialPort::print(string_view message,
 //    // Raw, unboxed printf (kept for convenience)
 //    va_list ap;
 //    va_start(ap, fmt);
-//    std::string out = xewe::str::vformat(fmt, ap);
+//    std::string out = vformat(fmt, ap);
 //    va_end(ap);
 //    if (!out.empty()) {
 //        Serial.write(reinterpret_cast<const uint8_t*>(out.data()), out.size());
@@ -144,18 +144,18 @@ void SerialPort::printf(char edge_character,
                         const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    std::string msg = xewe::str::vformat(fmt, ap);
+    std::string msg = vformat(fmt, ap);
     va_end(ap);
     print(msg, edge_character, text_align, message_width, margin_l, margin_r, end);
 }
 
 void SerialPort::print_separator(uint16_t total_width, char fill, char edge) {
-    std::string line = xewe::str::make_rule_line(total_width, fill, edge);
+    std::string line = make_rule_line(total_width, fill, edge);
     write_line_crlf(line);
 }
 
 void SerialPort::print_spacer(uint16_t total_width, char edge) {
-    std::string line = xewe::str::make_spacer_line(total_width, edge);
+    std::string line = make_spacer_line(total_width, edge);
     write_line_crlf(line);
 }
 
@@ -168,15 +168,13 @@ void SerialPort::print_header(string_view message,
     print_separator(total_width, sep_fill, sep_edge);
 
     // Center each part split by literal token "\sep"
-    auto parts = xewe::str::split_by_token(message, "\\sep");
+    auto parts = split_by_token(message, "\\sep");
     const uint16_t content_width = (total_width >= 2) ? (total_width - 2) : total_width;
     for (auto& p : parts) {
         // Center inside message field (content_width), no extra margins.
         print(p, edge, 'c', content_width, 0, 0, kCRLF);
+        print_separator(total_width, sep_fill, sep_edge);
     }
-
-    // Bottom rule
-    print_separator(total_width, sep_fill, sep_edge);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -252,7 +250,7 @@ T SerialPort::get_integral(string_view prompt, T default_value, T min_value, T m
 
         // Parse and enforce range
         T value{};
-        if (!xewe::str::parse_int<T>(line, value)) {
+        if (!parse_int<T>(line, value)) {
             println_raw("! Invalid number. Please enter a base-10 integer.");
             if (retry_count != 0 && (attempt + 1) >= attempts) {
                 set_success(false);
@@ -395,7 +393,7 @@ bool SerialPort::get_yn(string_view prompt,
             continue;
         }
 
-        std::string low = xewe::str::to_lower(line);
+        std::string low = to_lower(line);
         if (low == "y" || low == "yes" || low == "1" || low == "true") {
             set_success(true);
             return true;
