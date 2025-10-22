@@ -1,2 +1,7 @@
 /lib/
-/build/
+/build/builds
+/build/tools
+/build/latest
+/build/work
+/build/cache
+
