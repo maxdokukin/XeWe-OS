@@ -30,11 +30,11 @@ void ModuleController::begin() {
     system.begin                (SystemConfig       {});
 
     if (init_setup_flag) {
-        serial_port.print_spacer();
-        serial_port.print_centered("Initial Setup Complete", 50);
-        serial_port.print_spacer();
-        serial_port.print_centered("Rebooting...");
-        serial_port.print_spacer();
+        // serial_port.print_spacer();
+        // serial_port.print_centered("Initial Setup Complete", 50);
+        // serial_port.print_spacer();
+        // serial_port.print_centered("Rebooting...");
+        // serial_port.print_spacer();
         delay(3000);
         ESP.restart();
     }
@@ -54,9 +54,9 @@ void ModuleController::begin() {
     // this can be moved inside of the module begin
     command_parser.begin(parser_cfg);
 
-    serial_port.print_spacer();
-    serial_port.print_centered("System Setup Complete", 50);
-    serial_port.print_spacer();
+    // serial_port.print_spacer();
+    // serial_port.print_centered("System Setup Complete", 50);
+    // serial_port.print_spacer();
 }
 
 void ModuleController::loop() {

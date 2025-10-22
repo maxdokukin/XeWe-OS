@@ -15,9 +15,9 @@
 void Module::begin (const ModuleConfig& cfg) {
     DBG_PRINTF(Module, "'%s'->begin(): Called.\n", module_name.c_str());
     if (requires_init_setup) {
-        controller.serial_port.print_spacer();
-        controller.serial_port.print_centered(capitalize(module_name) + " Setup");
-        controller.serial_port.print_spacer();
+        // controller.serial_port.print_spacer();
+        // controller.serial_port.print_centered(capitalize(module_name) + " Setup");
+        // controller.serial_port.print_spacer();
     }
 
     bool first_boot = !controller.nvs.read_bool(nvs_key, "not_first_boot");
@@ -37,7 +37,7 @@ void Module::begin (const ModuleConfig& cfg) {
 
     if (first_boot) {
         if (can_be_disabled) {
-            enabled = controller.serial_port.prompt_user_yn(string("Would you like to enable ") + capitalize(module_name) + " module?\n" + module_description, 0);
+            enabled = true;// controller.serial_port.prompt_user_yn(string("Would you like to enable ") + capitalize(module_name) + " module?\n" + module_description, 0);
             if (!enabled) {
                 controller.nvs.write_bool(nvs_key, "is_enabled", false);
                 controller.nvs.write_bool(nvs_key, "not_first_boot", true);
@@ -60,7 +60,7 @@ void Module::begin (const ModuleConfig& cfg) {
 
 void Module::begin_routines_required(const ModuleConfig&) {}
 void Module::begin_routines_init(const ModuleConfig&) {}
-void Module::begin_routines_regular(const ModuleConfig&) { controller.serial_port.println(module_name + " setup complete"); }
+void Module::begin_routines_regular(const ModuleConfig&) { /* controller.serial_port.println(module_name + " setup complete");*/ }
 void Module::begin_routines_common(const ModuleConfig&) {}
 
 void Module::loop() {}
@@ -236,7 +236,7 @@ void Module::run_with_dots(const function<void()>& work, uint32_t duration_ms, u
 
     const uint32_t now = millis();
     if ((int32_t)(now - next) >= 0) {
-      controller.serial_port.print(string_view{"."});
+      // controller.serial_port.print(string_view{"."});
 
       // If we're late by multiple intervals, skip ahead (prevents dot bursts)
       const uint32_t late = now - next;
@@ -244,7 +244,7 @@ void Module::run_with_dots(const function<void()>& work, uint32_t duration_ms, u
       next += intervals * dot_interval_ms;
     }
   }
-  controller.serial_port.print(string_view{"\n"});
+  // controller.serial_port.print(string_view{"\n"});
 }
 
 void Module::add_requirement(Module& other) {
