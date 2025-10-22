@@ -196,6 +196,12 @@ if [[ "${DO_UPLOAD}" -eq 1 ]]; then
   write_kv "${STATE_FILE}" LAST_BUILD_TS "${TS_SHORT}"
   write_kv "${STATE_FILE}" PROJECT "${PROJECT_NAME}"
   echo "✅ Version committed → ${VERSION_NEXT}"
+
+  # Publish only the two artifacts. No new files are created in the repo.
+  "${SCRIPT_DIR}/push_to_git.sh" \
+    --project-root "${PROJECT_ROOT}" \
+    --target-dir   "${TARGET_DIR}" \
+    --version      "${VERSION_NEXT}"
 else
   echo "ℹ️  No port provided (or --compile-only). Skipping upload; version NOT incremented."
 fi
@@ -206,4 +212,5 @@ if [[ "${DO_MONITOR_FINAL}" -eq 1 ]]; then
   ./listen_serial.sh -p "${ESP_PORT}" -b "${SERIAL_BAUD}"
 fi
 
-echo "\n✅ Done."
+echo
+echo "✅ Done."
