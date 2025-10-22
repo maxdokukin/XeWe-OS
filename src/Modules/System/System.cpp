@@ -26,43 +26,23 @@ System::System(ModuleController& controller)
         "Restart the ESP",
         string("Sample Use: $") + lower(module_name) + " restart",
         0,
-        [this](string_view args) {
-            DBG_PRINTLN(System, "System: 'restart' command issued. Rebooting now.");
-            ESP.restart();
-        }
+        [this](string_view args) { ESP.restart(); }
     });
     commands_storage.push_back({
         "reboot",
         "Restart the ESP",
         string("Sample Use: $") + lower(module_name) + " reboot",
         0,
-        [this](string_view args) {
-            DBG_PRINTLN(System, "System: 'reboot' command issued. Rebooting now.");
-            ESP.restart();
-        }
+        [this](string_view args) { ESP.restart(); }
     });
 }
 
-
 void System::begin_routines_required (const ModuleConfig& cfg) {
     controller.serial_port.print_header(
-        string("XeWe OS") +
-        "\\sep" +
-        "Lightweight ESP32 OS" +
-        "\\sep" +
-        "https://github.com/maxdokukin/XeWe-OS" +
-        "\\sep" +
+        string("XeWe OS") + "\\sep" +
+        "Lightweight ESP32 OS" + "\\sep" +
+        "https://github.com/maxdokukin/XeWe-OS" + "\\sep" +
         "Version " + TO_STRING(BUILD_VERSION) + "\n" +
         "Build Timestamp " + TO_STRING(BUILD_TIMESTAMP)
     );
-
-    // controller.serial_port.print_spacer();
-    // controller.serial_port.print_centered("XeWe OS");
-    // controller.serial_port.print_spacer();
-    // controller.serial_port.print_centered(string("Version ") + TO_STRING(BUILD_VERSION));
-    // controller.serial_port.print_centered("https://github.com/maxdokukin/XeWe-OS");
-    // controller.serial_port.print_centered(string("Build Timestamp ") + TO_STRING(BUILD_TIMESTAMP));
-    // controller.serial_port.print_spacer();
-    // controller.serial_port.print_centered("Lightweight ESP32 OS");
-    // controller.serial_port.print_spacer();
 }

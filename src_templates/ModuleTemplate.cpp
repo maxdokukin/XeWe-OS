@@ -7,31 +7,14 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/XeWe-LED-OS
  *********************************************************************************/
+// <filepath from project root>
 
-
-
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// THIS TEMPLATE NEEDS TO BE UPDATED
-// src/Modules/ModuleName/ModuleName.cpp
 
 #include "ModuleName.h"
-#include "../../../SystemController/SystemController.h"
+#include "../../../ModuleController/ModuleController.h"
 
 
-ModuleName::ModuleName(SystemController& controller)
+ModuleName::ModuleName(ModuleController& controller)
       : Module(controller,
                /* module_name         */ "",
                /* module_description  */ "",
@@ -40,14 +23,6 @@ ModuleName::ModuleName(SystemController& controller)
                /* can_be_disabled     */ false,
                /* has_cli_cmds        */ false)
 {}
-
-//  begin(cfg):
-//      begin_routines_required(cfg)
-//      if first_time_startup
-//           begin_routines_init(cfg)
-//      else
-//          begin_routines_regular(cfg)
-//      begin_routines_common(cfg)
 
 void ModuleName::begin_routines_required (const ModuleConfig& cfg) {
 //    const auto& config = static_cast<const ModuleNameConfig&>(cfg);
@@ -73,22 +48,22 @@ void ModuleName::loop () {
     // do your custom routines here
 }
 
-void ModuleName::reset (const bool verbose) {
+void ModuleName::enable (const bool verbose, const bool do_restart) {
     // do your custom routines here
-    Module::reset(verbose); // this will restart the system
+    return Module::enable(verbose, do_restart);
 }
 
-bool ModuleName::enable (const bool verbose) {
+void ModuleName::disable (const bool verbose, const bool do_restart) {
     // do your custom routines here
-    return Module::enable(verbose); // this will restart the system
+    Module::disable(verbose, do_restart);
 }
 
-bool ModuleName::disable (const bool verbose) {
-    return Module::disable(verbose);
+void ModuleName::reset (const bool verbose, const bool do_restart) {
     // do your custom routines here
+    Module::reset(verbose, do_restart);
 }
 
-std::string ModuleName::status (const bool verbose) const {
+std::string ModuleName::status (const bool verbose, const bool do_restart) const {
     // do your custom routines here
-    return Module::status(verbose); // this will restart the system
+    return Module::status(verbose, do_restart);
 }

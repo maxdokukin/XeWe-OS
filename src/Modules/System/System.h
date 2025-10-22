@@ -7,15 +7,11 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/XeWe-LED-OS
  *********************************************************************************/
-
-
-
 // src/Modules/Software/System/System.h
 #pragma once
 
 #include "../../Module/Module.h"
 #include "../../build_info.h"
-//#include "../../../Debug.h"
 
 
 struct SystemConfig : public ModuleConfig {};

@@ -78,7 +78,7 @@ public:
     Module                                                  (Module&&)                      = delete;
     Module& operator=                                       (Module&&)                      = delete;
 
-    virtual void                begin                       (const ModuleConfig& cfg);
+    void                        begin                       (const ModuleConfig& cfg);
     virtual void                begin_routines_required     (const ModuleConfig& cfg);
     virtual void                begin_routines_init         (const ModuleConfig& cfg);
     virtual void                begin_routines_regular      (const ModuleConfig& cfg);
@@ -94,11 +94,11 @@ public:
                                                              const bool do_restart=true);
 
     virtual string              status                      (const bool verbose=false)      const;
-    virtual bool                is_enabled                  (const bool verbose=false)      const;
-    virtual bool                is_disabled                 (const bool verbose=false)      const;
-    virtual bool                init_setup_complete         (const bool verbose=false)      const;
+    bool                        is_enabled                  (const bool verbose=false)      const;
+    bool                        is_disabled                 (const bool verbose=false)      const;
+    bool                        init_setup_complete         (const bool verbose=false)      const;
 
-    virtual void                add_requirement             (Module& other);
+    void                        add_requirement             (Module& other);
 
     CommandsGroup               get_commands_group          ();
     string_view                 get_module_name             ()                              const { return module_name; };
