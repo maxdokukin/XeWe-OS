@@ -52,11 +52,10 @@ done
 
 # Paths
 BUILD_ROOT="${PROJECT_ROOT}/build"
-CACHE_DIR="${BUILD_ROOT}/cache"
-WORK_DIR="${BUILD_ROOT}/work"          # temp build path for Arduino
+WORK_DIR="${BUILD_ROOT}/cache"          # temp build path for Arduino
 BUILDS_DIR="${BUILD_ROOT}/builds"
 
-mkdir -p "${CACHE_DIR}" "${WORK_DIR}" "${BUILDS_DIR}"
+mkdir -p "${WORK_DIR}" "${BUILDS_DIR}"
 
 # Tooling checks
 if ! command -v arduino-cli >/dev/null 2>&1; then
@@ -161,7 +160,7 @@ BINARY_DIR="${TARGET_DIR}/binary"
 
 echo "🔧 Arduino FQBN: ${FQBN}"
 echo "📄 Sketch: ${SKETCH_PATH}"
-echo "📦 Using cache: ${CACHE_DIR}"
+echo "📦 Using cache: ${WORK_DIR}"
 echo "🎯 Build (staging): ${WORK_DIR}"
 echo "📁 Build (final):   ${TARGET_DIR}"
 
@@ -173,7 +172,6 @@ COMPILE_ARGS=(
   compile
   --fqbn "${FQBN}"
   --build-path "${WORK_DIR}"
-  --build-cache-path "${CACHE_DIR}"
   --warnings default
 )
 

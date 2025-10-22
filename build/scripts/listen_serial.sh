@@ -9,7 +9,7 @@ set -euo pipefail
 # Prefers Arduino CLI monitor; falls back to Python's miniterm, then to screen.
 
 ESP_PORT=""
-ESP_BAUD="115200"   # typical sketch default; can be overridden
+ESP_BAUD="9600"   # typical sketch default; can be overridden
 
 usage() {
   cat <<'EOF'
