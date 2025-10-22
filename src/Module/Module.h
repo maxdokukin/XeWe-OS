@@ -97,6 +97,7 @@ public:
     virtual string              status                      (const bool verbose=false)      const;
     virtual bool                is_enabled                  (const bool verbose=false)      const;
     virtual bool                is_disabled                 (const bool verbose=false)      const;
+    virtual bool                init_setup_complete         (const bool verbose=false)      const;
 
     virtual void                add_requirement             (Module& other);
 

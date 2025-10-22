@@ -7,18 +7,22 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/XeWe-LED-OS
  *********************************************************************************/
-
-
-
-#ifndef STRING_UTILS_HPP
-#define STRING_UTILS_HPP
+#pragma once
 
 #include <string>
-#include <algorithm>
+#include <string_view>
+#include <vector>
 #include <cctype>
-#include <cstdint> // add this if not already included
+#include <algorithm>
+#include <limits>
+#include <type_traits>
+#include <cstdarg>
 
-// Returns a new string where every character in the input is converted to lowercase.
+#define STRINGIFY(x) #x
+#define TO_STRING(x) STRINGIFY(x)
+
+namespace xewe::str {
+
 inline std::string lower(std::string s) {
     std::transform(
         s.begin(), s.end(),
@@ -26,89 +30,6 @@ inline std::string lower(std::string s) {
         [](unsigned char c) { return static_cast<char>(std::tolower(c)); }
     );
     return s;
-}
-
-#pragma once
-#include <string>
-#include <algorithm>
-#include <cctype>
-
-#define STRINGIFY(x) #x
-#define TO_STRING(x) STRINGIFY(x)
-
-namespace xewe::str {
-
-// Replace all occurrences of `from` with `to` in s
-inline void replace_all(std::string& s, const std::string& from, const std::string& to) {
-    if (from.empty()) return;
-    size_t pos = 0;
-    while ((pos = s.find(from, pos)) != std::string::npos) {
-        s.replace(pos, from.size(), to);
-        pos += to.size();
-    }
-}
-
-// Trim spaces and lowercase
-inline std::string lc(std::string s) {
-    s.erase(std::remove_if(s.begin(), s.end(),
-            [](unsigned char c){ return std::isspace(c); }), s.end());
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c){ return char(std::tolower(c)); });
-    return s;
-}
-
-inline std::string center_text(std::string text,
-                               uint16_t total_width,
-                               const std::string& edge_characters = "|")
-{
-    const size_t total = static_cast<size_t>(total_width);
-    const size_t edge_len = edge_characters.size();
-
-    // Degenerate cases
-    if (total == 0) return std::string{};
-    if (edge_len * 2 >= total) {
-        // Not enough room for inner content; return as much of the left edge as fits
-        return edge_characters.substr(0, total);
-    }
-
-    const size_t inner_width = total - (edge_len * 2);
-
-    // Truncate text if needed
-    if (text.size() > inner_width) {
-        text.resize(inner_width);
-    }
-
-    // Compute left/right padding
-    const size_t spaces = inner_width - text.size();
-    const size_t left_pad  = spaces / 2;
-    const size_t right_pad = spaces - left_pad;
-
-    return edge_characters
-         + std::string(left_pad, ' ')
-         + text
-         + std::string(right_pad, ' ')
-         + edge_characters;
-}
-
-inline std::string generate_split_line(uint16_t total_width,
-                                       char major_character = '-',
-                                       const std::string& edge_characters = "|")
-{
-    const size_t total = static_cast<size_t>(total_width);
-    const size_t edge_len = edge_characters.size();
-
-    if (total == 0) return std::string{};
-    if (edge_len == 0) {
-        // No edges: whole line is the major character
-        return std::string(total, major_character);
-    }
-    if (edge_len * 2 >= total) {
-        // Not enough room for inner content; return as much of the left edge as fits
-        return edge_characters.substr(0, total);
-    }
-
-    const size_t inner_width = total - (edge_len * 2);
-    return edge_characters + std::string(inner_width, major_character) + edge_characters;
 }
 
 inline std::string capitalize(std::string s) {
@@ -124,10 +45,185 @@ inline std::string capitalize(std::string s) {
     }
     return s;
 }
+// --------------------------------------------------------------------------------------
+// Small, header-only string utilities intended for embedded targets.
+// Keep allocations modest and avoid exceptions.
+// --------------------------------------------------------------------------------------
 
+inline constexpr char kCRLF[] = "\r\n";
+
+// Repeat a character N times into a std::string.
+inline std::string repeat(char ch, size_t count) {
+    return std::string(count, ch);
+}
+
+// Trim a single trailing '\r' (typical from CRLF when splitting on '\n').
+inline void rtrim_cr(std::string& s) {
+    if (!s.empty() && s.back() == '\r') s.pop_back();
+}
+
+// Return lower-cased copy (ASCII only).
+inline std::string to_lower(std::string s) {
+    for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+// Split by a single character without allocating substrings (views).
+inline std::vector<std::string_view> split_lines_sv(std::string_view text, char delim = '\n') {
+    std::vector<std::string_view> out;
+    size_t start = 0;
+    while (start <= text.size()) {
+        size_t pos = text.find(delim, start);
+        if (pos == std::string_view::npos) {
+            out.emplace_back(text.substr(start));
+            break;
+        } else {
+            out.emplace_back(text.substr(start, pos - start));
+            start = pos + 1;
+        }
+    }
+    return out;
+}
+
+// Split by a literal token (e.g. "\\sep").
+inline std::vector<std::string> split_by_token(std::string_view s, std::string_view token) {
+    std::vector<std::string> out;
+    size_t start = 0;
+    while (start <= s.size()) {
+        size_t pos = s.find(token, start);
+        if (pos == std::string_view::npos) {
+            out.emplace_back(s.substr(start));
+            break;
+        } else {
+            out.emplace_back(s.substr(start, pos - start));
+            start = pos + token.size();
+        }
+    }
+    return out;
+}
+
+// Break a string into fixed-width chunks (character-based wrap).
+inline std::vector<std::string> wrap_fixed(std::string_view s, size_t width) {
+    std::vector<std::string> out;
+    if (width == 0) {
+        out.emplace_back(s);
+        return out;
+    }
+    for (size_t i = 0; i < s.size(); i += width) {
+        out.emplace_back(s.substr(i, std::min(width, s.size() - i)));
+    }
+    return out;
+}
+
+// Align a short string within a field of "width" using 'l', 'r', or 'c'.
+// If width == 0, alignment pads are zero.
+inline std::string align_into(std::string_view s, size_t width, char align) {
+    if (width == 0 || s.size() >= width) return std::string(s);
+    size_t pad = width - s.size();
+    switch (align) {
+        case 'r': return repeat(' ', pad) + std::string(s);
+        case 'c': {
+            size_t left = pad / 2;
+            size_t right = pad - left;
+            return repeat(' ', left) + std::string(s) + repeat(' ', right);
+        }
+        default:  // 'l'
+            return std::string(s) + repeat(' ', pad);
+    }
+}
+
+// Build a spacer/box line like: "|" + spaces + "|"
+inline std::string make_spacer_line(uint16_t total_width, char edge = '|') {
+    if (total_width <= 1) return std::string(1, edge);
+    if (total_width == 2) return std::string(2, edge);
+    return std::string(1, edge) + repeat(' ', total_width - 2) + std::string(1, edge);
+}
+
+// Build a rule line like: "+" + "-----" + "+"
+inline std::string make_rule_line(uint16_t total_width, char fill = '-', char edge = '+') {
+    if (total_width <= 1) return std::string(1, edge);
+    if (total_width == 2) return std::string(2, edge);
+    return std::string(1, edge) + repeat(fill, total_width - 2) + std::string(1, edge);
+}
+
+// Compose a single "boxed" content line with edges and margins.
+// message_width == 0 means: do NOT align/stretch; just place content between margins and edges.
+inline std::string compose_box_line(std::string_view content,
+                                    char edge,
+                                    size_t message_width,
+                                    size_t margin_l,
+                                    size_t margin_r,
+                                    char align) {
+    std::string line;
+    line.reserve(2 + margin_l + margin_r + (message_width ? message_width : content.size()));
+    line.push_back(edge);
+
+    if (message_width == 0) {
+        // No target field width: just margins + content.
+        line += repeat(' ', margin_l);
+        line += content;
+        line += repeat(' ', margin_r);
+        line.push_back(edge);
+        return line;
+    }
+
+    // message_width is the content field width; align inside that area.
+    std::string payload = align_into(content, message_width, align);
+    line += repeat(' ', margin_l);
+    line += payload;
+    line += repeat(' ', margin_r);
+    line.push_back(edge);
+    return line;
+}
+
+// Format a printf-style string to std::string (safe two-pass).
+inline std::string vformat(const char* fmt, va_list ap) {
+    if (!fmt) return {};
+#if defined(__GNUC__)
+    va_list ap_copy;
+    va_copy(ap_copy, ap);
+    int needed = vsnprintf(nullptr, 0, fmt, ap_copy);
+    va_end(ap_copy);
+    if (needed <= 0) return {};
+    std::string out;
+    out.resize(static_cast<size_t>(needed));
+    vsnprintf(out.data(), out.size() + 1, fmt, ap);
+    return out;
+#else
+    // Fallback: fixed buffer (avoid on embedded, but kept for completeness)
+    char buf[256];
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    return std::string(buf);
+#endif
+}
+
+// Numeric parsing helpers (base-10). Return false if parse fails or out-of-range.
+template <typename T, typename = std::enable_if_t<std::is_integral<T>::value>>
+inline bool parse_int(std::string_view s, T& out) {
+    // Trim spaces.
+    size_t start = 0, end = s.size();
+    while (start < end && std::isspace(static_cast<unsigned char>(s[start]))) ++start;
+    while (end > start && std::isspace(static_cast<unsigned char>(s[end - 1]))) --end;
+    if (start >= end) return false;
+
+    // Copy to buffer and ensure NUL-termination.
+    std::string tmp(s.substr(start, end - start));
+    char* pEnd = nullptr;
+
+    if constexpr (std::is_signed<T>::value) {
+        long long v = strtoll(tmp.c_str(), &pEnd, 10);
+        if (pEnd == tmp.c_str() || *pEnd != '\0') return false;
+        if (v < static_cast<long long>(std::numeric_limits<T>::min()) ||
+            v > static_cast<long long>(std::numeric_limits<T>::max())) return false;
+        out = static_cast<T>(v);
+        return true;
+    } else {
+        unsigned long long v = strtoull(tmp.c_str(), &pEnd, 10);
+        if (pEnd == tmp.c_str() || *pEnd != '\0') return false;
+        if (v > static_cast<unsigned long long>(std::numeric_limits<T>::max())) return false;
+        out = static_cast<T>(v);
+        return true;
+    }
+}
 
 } // namespace xewe::str
-
-
-
-#endif // STRING_UTILS_HPP
