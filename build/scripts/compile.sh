@@ -102,7 +102,18 @@ chip_to_family_str() {
 FQBN_BOARD="$(chip_to_fqbn_board "${ESP_CHIP}")"
 CHIP_FAMILY="$(chip_to_family_str "${ESP_CHIP}")"
 FQBN_BASE="esp32:esp32:${FQBN_BOARD}"
-FQBN_OPTS_DEFAULT="PartitionScheme=no_ota,UploadSpeed=921600"
+FQBN_OPTS_DEFAULT="\
+CDCOnBoot=cdc,\
+CPUFreq=160,\
+DebugLevel=none,\
+EraseFlash=all,\
+FlashFreq=80,\
+FlashMode=qio,\
+FlashSize=4M,\
+JTAGAdapter=default,\
+PartitionScheme=no_ota,\
+UploadSpeed=921600\
+"
 FQBN_OPTS="${FQBN_OPTS_DEFAULT}${FQBN_EXTRA_OPTS:+,${FQBN_EXTRA_OPTS}}"
 FQBN="${FQBN_BASE}:${FQBN_OPTS}"
 
@@ -231,8 +242,8 @@ echo "${VERSION_NEXT}" > "${TARGET_DIR}/version.txt"
 find "${WORK_DIR}" -maxdepth 1 -type f \( -name "*.bin" -o -name "*.elf" -o -name "*.map" \) -exec cp -a {} "${OUTPUT_DIR}/" \;
 
 # Place final merged image
-cp -a "${MERGED_BIN}" "${BINARY_DIR}/firmware.bin"
-cp -a "${MERGED_BIN}" "${BINARY_DIR}/${VERSION_NEXT}-${CHIP_FAMILY}-${PROJECT_NAME}.bin"
+MERGED_BIN_FILENAME="${VERSION_NEXT}-${CHIP_FAMILY}-${PROJECT_NAME}.bin"
+cp -a "${MERGED_BIN}" "${BINARY_DIR}/${MERGED_BIN_FILENAME}"
 
 # ---------- Manifest (ESP Web Tools v10) ----------
 cat > "${BINARY_DIR}/manifest.json" <<EOF
@@ -244,7 +255,7 @@ cat > "${BINARY_DIR}/manifest.json" <<EOF
     {
       "chipFamily": "${CHIP_FAMILY}",
       "parts": [
-        { "path": "firmware.bin", "offset": 0 }
+        { "path": "${MERGED_BIN_FILENAME}", "offset": 0 }
       ]
     }
   ]

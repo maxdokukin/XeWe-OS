@@ -45,7 +45,7 @@ done
 [[ -z "${BUILD_DIR}" ]] && usage
 [[ -d "${BUILD_DIR}" ]] || { echo "❌ Build dir not found: ${BUILD_DIR}"; exit 1; }
 
-FW="${BUILD_DIR}/binary/firmware.bin"
+FW=$(find "${BUILD_DIR}/binary" -name '*.bin' | head -n 1)
 [[ -f "${FW}" ]] || { echo "❌ Firmware not found: ${FW}"; exit 1; }
 
 chip_to_esptool_id() {

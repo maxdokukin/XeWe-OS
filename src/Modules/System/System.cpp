@@ -18,7 +18,7 @@ System::System(ModuleController& controller)
                /* module_name         */ "System",
                /* module_description  */ "Stores integral commands and routines",
                /* nvs_key             */ "sys",
-               /* requires_init_setup */ true,
+               /* requires_init_setup */ false,
                /* can_be_disabled     */ false,
                /* has_cli_cmds        */ true) {
     commands_storage.push_back({
@@ -55,41 +55,3 @@ void System::begin_routines_required (const ModuleConfig& cfg) {
     controller.serial_port.print_centered("Lightweight ESP32 OS");
     controller.serial_port.print_spacer();
 }
-
-void System::begin_routines_init (const ModuleConfig& cfg) {
-    controller.serial_port.print_spacer();
-    controller.serial_port.print_centered("Initial Set Up Flow");
-    controller.serial_port.print_centered("");
-    controller.serial_port.print_centered("- Device Name                          ");
-    controller.serial_port.print_centered("- LED Strip                            ");
-    controller.serial_port.print_centered("- WiFi                                 ");
-    controller.serial_port.print_centered("- Web Interface     REQUIRES WiFi      ");
-    controller.serial_port.print_centered("- HomeKit           REQUIRES WiFi      ");
-    controller.serial_port.print_centered("- Alexa             REQUIRES WiFi & Web");
-    controller.serial_port.print_centered("- Buttons                              ");
-    controller.serial_port.print_spacer();
-
-    controller.serial_port.print_spacer();
-    controller.serial_port.print_centered("Name Your Device");
-    controller.serial_port.print_spacer();
-    controller.serial_port.println("Set the name your device will proudly hold until");
-    controller.serial_port.println("the last electron leaves it");
-    controller.serial_port.println("Sample names: \"Desk Lights\" or \"Ceiling Lights\"");
-
-    string device_name;
-    bool confirmed = false;
-    while (!confirmed) {
-        device_name = controller.serial_port.get_string("Enter device name: ");
-        confirmed = controller.serial_port.prompt_user_yn("Confirm name: " + device_name);
-    }
-
-    controller.nvs.write_str(nvs_key, "dname", device_name);
-    controller.serial_port.get_string(
-        "\nDevice name setup success!\n"
-        "Press enter to continue"
-    );
-
-    DBG_PRINTLN(System, "System->init_setup(): Complete.");
-}
-
-string System::get_device_name () { return controller.nvs.read_str(nvs_key, "dname"); };

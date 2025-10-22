@@ -26,8 +26,4 @@ public:
     explicit                    System                      (ModuleController& controller);
 
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
-    void                        begin_routines_init         (const ModuleConfig& cfg)       override;
-
-    // other methods
-    string                 get_device_name             ();
 };
