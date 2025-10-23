@@ -37,6 +37,11 @@ void SerialPort::begin_routines_required (const ModuleConfig& cfg) {
     delay(1000);
 }
 
+void SerialPort::begin_routines_init         (const ModuleConfig&    cfg) {
+// test all the functions here
+}
+
+
 void SerialPort::loop () {
     while (Serial.available()) {
         char c = static_cast<char>(Serial.read());
@@ -85,13 +90,14 @@ void SerialPort::printf_raw(const char* fmt, ...) {
     }
 }
 
-void SerialPort::print(string_view message,
-                       char edge_character,
-                       char text_align,
-                       uint16_t message_width,
-                       uint16_t margin_l,
-                       uint16_t margin_r,
-                       string_view end) {
+void SerialPort::print(string_view            message       ,
+                       const char             edge_character,
+                       const char             text_align    ,
+                       const uint16_t         message_width ,
+                       const uint16_t         margin_l      ,
+                       const uint16_t         margin_r      ,
+                       string_view            end
+                       ) {
     // Split incoming by '\n', then optionally wrap each "line" to message_width.
     auto lines_sv = split_lines_sv(message, '\n');
     const bool use_wrap = (message_width > 0);
@@ -133,13 +139,15 @@ void SerialPort::print(string_view message,
 //    }
 //}
 
-void SerialPort::printf(char edge_character,
-                        char text_align,
-                        uint16_t message_width,
-                        uint16_t margin_l,
-                        uint16_t margin_r,
-                        string_view end,
-                        const char* fmt, ...) {
+void SerialPort::printf(const char             edge_character,
+                        const char             text_align,
+                        const uint16_t         message_width,h,
+                        const uint16_t         margin_l,
+                        const uint16_t         margin_r,
+                        const string_view      end,
+                        const char*            fmt,
+                                               ...
+                       ) {
     va_list ap;
     va_start(ap, fmt);
     std::string msg = vformat(fmt, ap);
@@ -147,21 +155,27 @@ void SerialPort::printf(char edge_character,
     print(msg, edge_character, text_align, message_width, margin_l, margin_r, end);
 }
 
-void SerialPort::print_separator(uint16_t total_width, char fill, char edge) {
+void SerialPort::print_separator(const uint16_t         total_width,
+                                 const char             fill       ,
+                                 const char             edge
+                                ) {
     std::string line = make_rule_line(total_width, fill, edge);
     write_line_crlf(line);
 }
 
-void SerialPort::print_spacer(uint16_t total_width, char edge) {
+void SerialPort::print_spacer(const uint16_t         total_width
+                              const char             edge
+                             ) {
     std::string line = make_spacer_line(total_width, edge);
     write_line_crlf(line);
 }
 
-void SerialPort::print_header(string_view message,
-                              uint16_t total_width,
-                              char edge,
-                              char sep_edge,
-                              char sep_fill) {
+void SerialPort::print_header(string_view            message,
+                              const uint16_t         total_width,
+                              const char             edge,
+                              const char             sep_edge,
+                              const char             sep_fill
+                             ) {
     // Top rule
     print_separator(total_width, sep_fill, sep_edge);
 
@@ -216,9 +230,14 @@ bool SerialPort::read_line_with_timeout(string& out, uint32_t timeout_ms) {
 
 // Generic integral reader
 template <typename T>
-T SerialPort::get_integral(string_view prompt, T default_value, T min_value, T max_value,
-                           uint16_t retry_count, uint32_t timeout_ms,
-                           std::optional<std::reference_wrapper<bool>> success_sink) {
+T SerialPort::get_integral (string_view prompt,
+                            T default_value,
+                            T min_value,
+                            T max_value,
+                            uint16_t retry_count,
+                            uint32_t timeout_ms,
+                            optional<reference_wrapper<bool>> success_sink
+                           ) {
     if (!prompt.empty()) println_raw(prompt);
 
     auto set_success = [&](bool ok){
