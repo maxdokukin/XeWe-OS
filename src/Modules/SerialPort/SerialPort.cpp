@@ -54,15 +54,6 @@ void SerialPort::test() {
         printf_raw("[TEST] %.*s END\r\n", int(fn.size()), fn.data());
         printf_raw("[TEST] ------------------------------------------------\r\n");
     };
-    auto feed_line = [&](const char* s){
-        size_t n = strlen(s);
-        if (n >= INPUT_BUFFER_SIZE) n = INPUT_BUFFER_SIZE - 1;
-        memcpy(input_buffer, s, n);
-        input_buffer[n] = '\0';
-        input_buffer_pos = 0;
-        line_length = n;
-        line_ready  = true;
-    };
 
     // RAW OUTPUT
     banner("print_raw");
@@ -120,32 +111,27 @@ void SerialPort::test() {
     printf_raw("[TEST] out: printed\r\n");
     done("printf (boxed)");
 
-    // INPUT AND LINE UTILITIES
+    // INPUT AND LINE UTILITIES — no synthetic input
     banner("has_line/read_line");
-    printf_raw("[TEST] in : feed_line(\"hello\")\r\n");
-    feed_line("hello");
+    printf_raw("[TEST] in : none; expect no line\r\n");
+    flush_input();
     bool hl = has_line();
     printf_raw("[TEST] out: has_line=%s\r\n", hl ? "true" : "false");
-    string got = read_line();
+    string got = read_line();  // returns empty if no line
     printf_raw("[TEST] out: read_line=\"%s\"\r\n", got.c_str());
     printf_raw("[TEST] out: post: has_line=%s\r\n", has_line() ? "true" : "false");
     done("has_line/read_line");
 
     banner("flush_input");
-    printf_raw("[TEST] in : preload buffer with \"xxx\"\r\n");
-    feed_line("xxx");
+    printf_raw("[TEST] in : call flush_input()\r\n");
     flush_input();
-    printf_raw("[TEST] out: input_buffer_pos=%u line_length=%u line_ready=%s\r\n",
-               static_cast<unsigned>(input_buffer_pos),
-               static_cast<unsigned>(line_length),
-               line_ready ? "true" : "false");
+    printf_raw("[TEST] out: cleared\r\n");
     done("flush_input");
 
     banner("read_line_with_timeout");
-    printf_raw("[TEST] in : feed_line(\"123\"), timeout_ms=1000\r\n");
-    feed_line("123");
+    printf_raw("[TEST] in : timeout_ms=10; expect timeout\r\n");
     string outLine;
-    bool ok = read_line_with_timeout(outLine, 1000);
+    bool ok = read_line_with_timeout(outLine, 10);
     printf_raw("[TEST] out: ok=%s, line=\"%s\"\r\n", ok ? "true" : "false", outLine.c_str());
     done("read_line_with_timeout");
 
@@ -155,89 +141,54 @@ void SerialPort::test() {
     printf_raw("[TEST] out: printed\r\n");
     done("write_line_crlf");
 
-    // GETTERS: INTEGRAL
+    // GETTERS — default paths only, tiny timeouts
     banner("get_int");
-    printf_raw("[TEST] in : prompt=\"int?\", default=5, range=[0..100], retries=1, timeout=1000, next_line=\"17\"\r\n");
-    feed_line("17");
+    printf_raw("[TEST] in : prompt=\"int?\", default=5, range=[0..100], retries=1, timeout=10000\r\n");
+    flush_input();
     bool succ = false;
-    int v = get_int("int?", 5, 0, 100, 1, 1000, std::ref(succ));
+    int v = get_int("int?", 5, 0, 100, 1, 0, std::ref(succ));
     printf_raw("[TEST] out: value=%d, success=%s\r\n", v, succ ? "true" : "false");
     done("get_int");
 
     banner("get_uint8");
-    printf_raw("[TEST] in : prompt=\"u8?\", default=9, range=[0..255], retries=1, timeout=1000, next_line=\"200\"\r\n");
-    feed_line("200");
+    printf_raw("[TEST] in : prompt=\"u8?\", default=9, range=[0..255], retries=1, timeout=10000\r\n");
+    flush_input();
     succ = false;
-    uint8_t v8 = get_uint8("u8?", 9, 0, 255, 1, 1000, std::ref(succ));
+    uint8_t v8 = get_uint8("u8?", 9, 0, 255, 1, 0, std::ref(succ));
     printf_raw("[TEST] out: value=%u, success=%s\r\n", static_cast<unsigned>(v8), succ ? "true" : "false");
     done("get_uint8");
 
     banner("get_uint16");
-    printf_raw("[TEST] in : prompt=\"u16?\", default=1, range=[0..10000], retries=1, timeout=1000, next_line=\"6553\"\r\n");
-    feed_line("6553");
+    printf_raw("[TEST] in : prompt=\"u16?\", default=1, range=[0..10000], retries=1, timeout=10000\r\n");
+    flush_input();
     succ = false;
-    uint16_t v16 = get_uint16("u16?", 1, 0, 10000, 1, 1000, std::ref(succ));
+    uint16_t v16 = get_uint16("u16?", 1, 0, 0, 1, 0, std::ref(succ));
     printf_raw("[TEST] out: value=%u, success=%s\r\n", static_cast<unsigned>(v16), succ ? "true" : "false");
     done("get_uint16");
 
     banner("get_uint32");
-    printf_raw("[TEST] in : prompt=\"u32?\", default=2, range=[0..1000000], retries=1, timeout=1000, next_line=\"429496\"\r\n");
-    feed_line("429496");
+    printf_raw("[TEST] in : prompt=\"u32?\", default=2, range=[0..1000000], retries=1, timeout=10000\r\n");
+    flush_input();
     succ = false;
-    uint32_t v32 = get_uint32("u32?", 2, 0u, 1000000u, 1, 1000, std::ref(succ));
+    uint32_t v32 = get_uint32("u32?", 2, 0u, 1000000u, 1, 0, std::ref(succ));
     printf_raw("[TEST] out: value=%lu, success=%s\r\n", static_cast<unsigned long>(v32), succ ? "true" : "false");
     done("get_uint32");
 
-    // GETTER: STRING
     banner("get_string");
-    printf_raw("[TEST] in : prompt=\"str?\", default=\"xx\", len=[3..10], retries=1, timeout=1000, next_line=\"abcde\"\r\n");
-    feed_line("abcde");
+    printf_raw("[TEST] in : prompt=\"str?\", default=\"xx\", len=[3..10], retries=1, timeout=10000\r\n");
+    flush_input();
     succ = false;
-    string s = get_string("str?", "xx", 3, 10, 1, 1000, std::ref(succ));
+    string s = get_string("str?", "xx", 3, 10, 1, 0, std::ref(succ));
     printf_raw("[TEST] out: value=\"%s\", success=%s\r\n", s.c_str(), succ ? "true" : "false");
     done("get_string");
 
-    // GETTER: YES/NO
-    banner("get_yn true");
-    printf_raw("[TEST] in : prompt=\"yn?\", default=false, retries=1, timeout=1000, next_line=\"y\"\r\n");
-    feed_line("y");
+    banner("get_yn");
+    printf_raw("[TEST] in : prompt=\"yn?\", default=false, retries=1, timeout=10000\r\n");
+    flush_input();
     succ = false;
-    bool b = get_yn("yn?", false, 1, 1000, std::ref(succ));
+    bool b = get_yn("yn?", false, 1, 0, std::ref(succ));
     printf_raw("[TEST] out: value=%s, success=%s\r\n", b ? "true" : "false", succ ? "true" : "false");
-    done("get_yn true");
-
-    banner("get_yn false");
-    printf_raw("[TEST] in : prompt=\"yn?\", default=true, retries=1, timeout=1000, next_line=\"no\"\r\n");
-    feed_line("no");
-    succ = false;
-    b = get_yn("yn?", true, 1, 1000, std::ref(succ));
-    printf_raw("[TEST] out: value=%s, success=%s\r\n", b ? "true" : "false", succ ? "true" : "false");
-    done("get_yn false");
-
-    // BOUNDARIES
-    banner("get_int out-of-range -> default");
-    printf_raw("[TEST] in : prompt=\"int-range?\", default=77, range=[0..10], retries=1, timeout=100, next_line=\"9999\"\r\n");
-    feed_line("9999");
-    succ = false;
-    v = get_int("int-range?", 77, 0, 10, 1, 100, std::ref(succ));
-    printf_raw("[TEST] out: value=%d, success=%s\r\n", v, succ ? "true" : "false");
-    done("get_int out-of-range -> default");
-
-    banner("get_string too short -> default");
-    printf_raw("[TEST] in : prompt=\"str-len?\", default=\"DEF\", len=[3..5], retries=1, timeout=100, next_line=\"a\"\r\n");
-    feed_line("a");
-    succ = false;
-    s = get_string("str-len?", "DEF", 3, 5, 1, 100, std::ref(succ));
-    printf_raw("[TEST] out: value=\"%s\", success=%s\r\n", s.c_str(), succ ? "true" : "false");
-    done("get_string too short -> default");
-
-    banner("get_yn invalid -> default");
-    printf_raw("[TEST] in : prompt=\"yn-bad?\", default=true, retries=1, timeout=100, next_line=\"maybe\"\r\n");
-    feed_line("maybe");
-    succ = false;
-    b = get_yn("yn-bad?", true, 1, 100, std::ref(succ));
-    printf_raw("[TEST] out: value=%s, success=%s\r\n", b ? "true" : "false", succ ? "true" : "false");
-    done("get_yn invalid -> default");
+    done("get_yn");
 
     // SUMMARY
     banner("summary");

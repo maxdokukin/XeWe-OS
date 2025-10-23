@@ -63,49 +63,49 @@ public:
                                                              const char             sep_fill        = '-'
                                                             );
     string                      get_string                  (string_view            prompt          = {},
-                                                             string_view            default_value   = {},
                                                              const uint16_t         min_length      = 0,
                                                              const uint16_t         max_length      = 0,
                                                              const uint16_t         retry_count     = 1,
                                                              const uint32_t         timeout_ms      = 10000,
+                                                             string_view            default_value   = {},
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
     int                         get_int                     (string_view            prompt          = {},
-                                                             const int              default_value   = 0,
                                                              const int              min_value       = numeric_limits<int>::min(),
                                                              const int              max_value       = numeric_limits<int>::max(),
                                                              const uint16_t         retry_count     = 1,
                                                              const uint32_t         timeout_ms      = 10000,
+                                                             const int              default_value   = 0,
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
     uint8_t                     get_uint8                   (string_view            prompt          = {},
-                                                             const uint8_t          default_value   = 0,
                                                              const uint8_t          min_value       = numeric_limits<uint8_t>::min(),
                                                              const uint8_t          max_value       = numeric_limits<uint8_t>::max(),
                                                              const uint16_t         retry_count     = 1,
                                                              const uint32_t         timeout_ms      = 10000,
+                                                             const uint8_t          default_value   = 0,
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
     uint16_t                    get_uint16                  (string_view            prompt          = {},
-                                                             const uint16_t         default_value   = 0,
                                                              const uint16_t         min_value       = numeric_limits<uint16_t>::min(),
                                                              const uint16_t         max_value       = numeric_limits<uint16_t>::max(),
                                                              const uint16_t         retry_count     = 1,
                                                              const uint32_t         timeout_ms      = 10000,
+                                                             const uint16_t         default_value   = 0,
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
     uint32_t                    get_uint32                  (string_view            prompt          = {},
-                                                             const uint32_t         default_value   = 0,
                                                              const uint32_t         min_value       = numeric_limits<uint32_t>::min(),
                                                              const uint32_t         max_value       = numeric_limits<uint32_t>::max(),
                                                              const uint16_t         retry_count     = 1,
                                                              const uint32_t         timeout_ms      = 10000,
+                                                             const uint32_t         default_value   = 0,
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
     bool                        get_yn                      (string_view            prompt          = {},
-                                                             const bool             default_value   = false,
                                                              const uint16_t         retry_count     = 1,
                                                              const uint32_t         timeout_ms      = 10000,
+                                                             const bool             default_value   = false,
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
 
@@ -116,20 +116,21 @@ private:
     void                        flush_input                 ();
     void                        print_raw                   (string_view message);
     void                        println_raw                 (string_view message);
-    void                        printf_raw                  (const char* fmt, ...);
-
+    void                        printf_raw                  (const char* fmt,
+                                                             ...
+                                                             );
     bool                        read_line_with_timeout      (string& out,
                                                              const uint32_t timeout_ms
-                                                             );
+                                                            );
     void                        write_line_crlf             (string_view s);
 
     template <typename T>
     T                           get_integral                (string_view prompt,
-                                                             const T default_value,
                                                              const T min_value,
                                                              const T max_value,
                                                              const uint16_t retry_count,
                                                              const uint32_t timeout_ms,
+                                                             const T default_value,
                                                              optional<reference_wrapper<bool>> success_sink);
 
     size_t                      input_buffer_pos            = 0;
