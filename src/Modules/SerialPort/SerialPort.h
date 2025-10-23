@@ -11,20 +11,13 @@
 #pragma once
 
 #include "../../Module/Module.h"
-//#include <optional>
-//#include <functional>
-//#include <cstdint>
-//#include <limits>
-//#include <cstdarg>
-//#include <cstdio>
-//#include <vector>
-//#include <limits>
-//#include <type_traits>
-//#include <cstdlib>
+#include <optional>
+
 
 struct SerialPortConfig : public ModuleConfig {
     unsigned long baud_rate = 9600;
 };
+
 
 class SerialPort : public Module {
 public:
@@ -34,7 +27,7 @@ public:
     void                        loop                        ()                                              override;
     void                        reset                       (const bool             verbose                 = false,
                                                              const bool             do_restart              = true
-                                                             ) override;
+                                                            ) override;
     void                        test                        ();
     // printers
     void                        print                       (string_view            message                 = {},
@@ -166,6 +159,7 @@ private:
     static constexpr size_t     INPUT_BUFFER_SIZE           = 255;
     char                        input_buffer                [INPUT_BUFFER_SIZE];
 };
+
 
 template <typename Ret, typename CheckFn>
 inline Ret SerialPort::get_core (string_view prompt,
