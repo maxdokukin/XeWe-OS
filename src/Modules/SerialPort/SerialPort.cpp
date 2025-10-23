@@ -7,6 +7,7 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/XeWe-LED-OS
  *********************************************************************************/
+// src/Modules/SerialPort/SerialPort.cpp
 #include "SerialPort.h"
 #include "../../ModuleController/ModuleController.h"
 
@@ -16,6 +17,12 @@
 #include <vector>
 #include <limits>
 #include <type_traits>
+#include <cstdlib>   // strtod
+
+using std::string;
+using std::string_view;
+using std::optional;
+using std::reference_wrapper;
 
 // -------------------------------------------------------------------------------------------------
 // Module lifecycle
@@ -33,7 +40,7 @@ SerialPort::SerialPort(ModuleController& controller)
         "test available functions",
         string("Sample Use: $") + lower(module_name) + " test",
         0,
-        [this](string_view args) { test(); }
+        [this](string_view) { test(); }
     });
 }
 
@@ -117,7 +124,7 @@ void SerialPort::test() {
     flush_input();
     bool hl = has_line();
     printf_raw("[TEST] out: has_line=%s\r\n", hl ? "true" : "false");
-    string got = read_line();  // empty if no line
+    string got = read_line();
     printf_raw("[TEST] out: read_line=\"%s\"\r\n", got.c_str());
     printf_raw("[TEST] out: post: has_line=%s\r\n", has_line() ? "true" : "false");
     done("has_line/read_line");
@@ -198,6 +205,7 @@ void SerialPort::test() {
     printf_raw("[TEST] out: value=%s, success=%s\r\n", b ? "true" : "false", succ ? "true" : "false");
     done("get_yn");
 
+
     // SUMMARY
     banner("summary");
     printf_raw("[TEST] in : none\r\n");
@@ -211,12 +219,11 @@ void SerialPort::test() {
 void SerialPort::loop() {
     while (Serial.available()) {
         char c = static_cast<char>(Serial.read());
-        yield();  // allow RTOS/watchdog
+        yield();
 
-        // Echo what user types (optional)
         Serial.write(static_cast<uint8_t>(c));
 
-        if (c == '\r') continue; // normalize CRLF -> LF
+        if (c == '\r') continue;
         if (c == '\n' || input_buffer_pos >= INPUT_BUFFER_SIZE - 1) {
             input_buffer[input_buffer_pos] = '\0';
             line_length = input_buffer_pos;
@@ -251,7 +258,6 @@ void SerialPort::println_raw(string_view message) {
 void SerialPort::printf_raw(const char* fmt, ...) {
     if (!fmt) return;
 
-    // Detect any unescaped '%' (not "%%"). If none, bypass formatting.
     bool has_spec = false;
     for (const char* p = fmt; *p; ++p) {
         if (*p == '%') {
@@ -289,11 +295,9 @@ void SerialPort::print(string_view  message,
                        const uint16_t margin_l,
                        const uint16_t margin_r,
                        string_view  end) {
-    // Split incoming by '\n', then optionally wrap each "line" to message_width.
     auto lines_sv = split_lines_sv(message, '\n');
     const bool use_wrap = (message_width > 0);
 
-    // We'll print CRLF between lines; on the very last emission, use 'end'.
     for (size_t i = 0; i < lines_sv.size(); ++i) {
         std::string base_line(lines_sv[i]);
         rtrim_cr(base_line);
@@ -419,8 +423,10 @@ bool SerialPort::read_line_with_timeout(string& out,
 }
 
 // -------------------------------------------------------------------------------------------------
-// Generic integral reader (updated parameter order)
+// Generalized input core usage + getters
 // -------------------------------------------------------------------------------------------------
+
+// Integral
 template <typename T>
 T SerialPort::get_integral(string_view prompt,
                            const T min_value,
@@ -429,212 +435,154 @@ T SerialPort::get_integral(string_view prompt,
                            const uint32_t timeout_ms,
                            const T default_value,
                            optional<reference_wrapper<bool>> success_sink) {
-    if (!prompt.empty()) println_raw(prompt);
-
-    auto set_success = [&](bool ok){
-        if (success_sink.has_value()) success_sink->get() = ok;
-    };
-
-    // Normalize constraints
-    T minv = min_value;
-    T maxv = max_value;
+    T minv = min_value, maxv = max_value;
     if (minv > maxv) std::swap(minv, maxv);
 
-    // Determine attempt policy
-    uint32_t attempts = (retry_count == 0) ? std::numeric_limits<uint32_t>::max()
-                                           : static_cast<uint32_t>(retry_count);
-
-    for (uint32_t attempt = 0; attempt < attempts; ++attempt) {
-        print_raw("> ");
-
-        string line;
-        bool got = read_line_with_timeout(line, timeout_ms);
-        if (!got) {
-            println_raw("! Timeout.");
-            if (retry_count != 0 && (attempt + 1) >= attempts) {
-                set_success(false);
-                return default_value;
-            }
-            continue;
+    auto checker = [&](const string& line, T& out, const char*& err)->bool {
+        T v{};
+        if (!parse_int<T>(line, v)) {
+            err = "! Invalid number. Please enter a base-10 integer.";
+            return false;
         }
-
-        // Parse and enforce range
-        T value{};
-        if (!parse_int<T>(line, value)) {
-            println_raw("! Invalid number. Please enter a base-10 integer.");
-            if (retry_count != 0 && (attempt + 1) >= attempts) {
-                set_success(false);
-                return default_value;
-            }
-            continue;
-        }
-        if (value < minv || value > maxv) {
+        if (v < minv || v > maxv) {
             printf_raw("! Out of range [%lld..%lld].\r\n",
                        static_cast<long long>(minv),
                        static_cast<long long>(maxv));
-            if (retry_count != 0 && (attempt + 1) >= attempts) {
-                set_success(false);
-                return default_value;
-            }
-            continue;
+            err = nullptr;
+            return false;
         }
-
-        set_success(true);
-        return value;
-    }
-
-    set_success(false);
-    return default_value;
-}
-
-// Signed int
-int SerialPort::get_int(string_view prompt,
-                        const int min_value,
-                        const int max_value,
-                        const uint16_t retry_count,
-                        const uint32_t timeout_ms,
-                        const int default_value,
-                        optional<reference_wrapper<bool>> success_sink) {
-    return get_integral<int>(prompt, min_value, max_value,
-                             retry_count, timeout_ms, default_value, success_sink);
-}
-
-uint8_t SerialPort::get_uint8(string_view prompt,
-                              const uint8_t min_value,
-                              const uint8_t max_value,
-                              const uint16_t retry_count,
-                              const uint32_t timeout_ms,
-                              const uint8_t default_value,
-                              optional<reference_wrapper<bool>> success_sink) {
-    return get_integral<uint8_t>(prompt, min_value, max_value,
-                                 retry_count, timeout_ms, default_value, success_sink);
-}
-
-uint16_t SerialPort::get_uint16(string_view prompt,
-                                const uint16_t min_value,
-                                const uint16_t max_value,
-                                const uint16_t retry_count,
-                                const uint32_t timeout_ms,
-                                const uint16_t default_value,
-                                optional<reference_wrapper<bool>> success_sink) {
-    return get_integral<uint16_t>(prompt, min_value, max_value,
-                                  retry_count, timeout_ms, default_value, success_sink);
-}
-
-uint32_t SerialPort::get_uint32(string_view prompt,
-                                const uint32_t min_value,
-                                const uint32_t max_value,
-                                const uint16_t retry_count,
-                                const uint32_t timeout_ms,
-                                const uint32_t default_value,
-                                optional<reference_wrapper<bool>> success_sink) {
-    return get_integral<uint32_t>(prompt, min_value, max_value,
-                                  retry_count, timeout_ms, default_value, success_sink);
-}
-
-string SerialPort::get_string(string_view prompt,
-                              const uint16_t min_length,
-                              const uint16_t max_length,
-                              const uint16_t retry_count,
-                              const uint32_t timeout_ms,
-                              string_view default_value,
-                              optional<reference_wrapper<bool>> success_sink) {
-    if (!prompt.empty()) println_raw(prompt);
-
-    auto set_success = [&](bool ok){
-        if (success_sink.has_value()) success_sink->get() = ok;
+        out = v;
+        return true;
     };
 
+    return sp_get_core<T>(prompt, retry_count, timeout_ms, default_value,
+                          success_sink, "> ", /*crlf*/false, checker);
+}
+
+// String
+std::string SerialPort::get_string(string_view prompt,
+                                   const uint16_t min_length,
+                                   const uint16_t max_length,
+                                   const uint16_t retry_count,
+                                   const uint32_t timeout_ms,
+                                   string_view default_value,
+                                   optional<reference_wrapper<bool>> success_sink) {
     const size_t min_len = static_cast<size_t>(min_length);
-    size_t max_len = (max_length == 0) ? (INPUT_BUFFER_SIZE - 1)
-                                       : static_cast<size_t>(max_length);
+    const size_t max_len = (max_length == 0) ? (INPUT_BUFFER_SIZE - 1)
+                                             : static_cast<size_t>(max_length);
 
-    uint32_t attempts = (retry_count == 0) ? std::numeric_limits<uint32_t>::max()
-                                           : static_cast<uint32_t>(retry_count);
-
-    for (uint32_t attempt = 0; attempt < attempts; ++attempt) {
-        print_raw("> ");
-
-        string line;
-        bool got = read_line_with_timeout(line, timeout_ms);
-        if (!got) {
-            println_raw("! Timeout.");
-            if (retry_count != 0 && (attempt + 1) >= attempts) {
-                set_success(false);
-                return string(default_value);
-            }
-            continue;
-        }
-
+    auto checker = [&](const string& line, string& out, const char*& err)->bool {
         if (line.size() < min_len || line.size() > max_len) {
             printf_raw("! Length must be in [%u..%u] chars.\r\n",
                        static_cast<unsigned>(min_len),
                        static_cast<unsigned>(max_len));
-            if (retry_count != 0 && (attempt + 1) >= attempts) {
-                set_success(false);
-                return string(default_value);
-            }
-            continue;
+            err = nullptr;
+            return false;
         }
+        out = line;
+        return true;
+    };
 
-        set_success(true);
-        return line;
-    }
-
-    set_success(false);
-    return string(default_value);
+    return sp_get_core<string>(prompt, retry_count, timeout_ms, string(default_value),
+                               success_sink, "> ", /*crlf*/false, checker);
 }
 
+// Yes/No
 bool SerialPort::get_yn(string_view prompt,
                         const uint16_t retry_count,
                         const uint32_t timeout_ms,
                         const bool default_value,
                         optional<reference_wrapper<bool>> success_sink) {
-    if (!prompt.empty()) println_raw(prompt);
-
-    auto set_success = [&](bool ok){
-        if (success_sink.has_value()) success_sink->get() = ok;
+    auto checker = [&](const string& line, bool& out, const char*& err)->bool {
+        std::string low = to_lower(line);
+        if (low == "y" || low == "yes" || low == "1" || low == "true")  { out = true;  return true; }
+        if (low == "n" || low == "no"  || low == "0" || low == "false") { out = false; return true; }
+        err = "! Please answer 'y' or 'n'.";
+        return false;
     };
 
-    uint32_t attempts = (retry_count == 0) ? std::numeric_limits<uint32_t>::max()
-                                           : static_cast<uint32_t>(retry_count);
+    return sp_get_core<bool>(prompt, retry_count, timeout_ms, default_value,
+                             success_sink, "(y/n) > ", /*crlf*/true, checker);
+}
 
-    for (uint32_t attempt = 0; attempt < attempts; ++attempt) {
-        println_raw("(y/n) > ");
+// Float
+float SerialPort::get_float(string_view prompt,
+                            const float min_value,
+                            const float max_value,
+                            const uint16_t retry_count,
+                            const uint32_t timeout_ms,
+                            const float default_value,
+                            optional<reference_wrapper<bool>> success_sink) {
+    float minv = min_value, maxv = max_value;
+    if (minv > maxv) std::swap(minv, maxv);
 
-        string line;
-        bool got = read_line_with_timeout(line, timeout_ms);
-        if (!got) {
-            println_raw("! Timeout.");
-            if (retry_count != 0 && (attempt + 1) >= attempts) {
-                set_success(false);
-                return default_value;
-            }
-            continue;
-        }
-
-        std::string low = to_lower(line);
-        if (low == "y" || low == "yes" || low == "1" || low == "true") {
-            set_success(true);
-            return true;
-        }
-        if (low == "n" || low == "no" || low == "0" || low == "false") {
-            set_success(true);
+    auto checker = [&](const string& line, float& out, const char*& err)->bool {
+        const char* s = line.c_str();
+        char* end = nullptr;
+        double dv = strtod(s, &end);
+        while (end && *end == ' ') ++end;
+        if (s == end || (end && *end != '\0')) {
+            err = "! Invalid number. Please enter a decimal value.";
             return false;
         }
-
-        println_raw("! Please answer 'y' or 'n'.");
-        if (retry_count != 0 && (attempt + 1) >= attempts) {
-            set_success(false);
-            return default_value;
+        if (dv != dv) { err = "! Invalid number."; return false; } // NaN
+        float v = static_cast<float>(dv);
+        if (v < minv || v > maxv) {
+            printf_raw("! Out of range [%g..%g].\r\n",
+                       static_cast<double>(minv),
+                       static_cast<double>(maxv));
+            err = nullptr;
+            return false;
         }
-    }
+        out = v;
+        return true;
+    };
 
-    set_success(false);
-    return default_value;
+    return sp_get_core<float>(prompt, retry_count, timeout_ms, default_value,
+                              success_sink, "> ", /*crlf*/false, checker);
 }
 
 void SerialPort::write_line_crlf(string_view s) {
     Serial.write(reinterpret_cast<const uint8_t*>(s.data()), s.size());
     Serial.write(reinterpret_cast<const uint8_t*>(kCRLF), 2);
+}
+
+int SerialPort::get_int(std::string_view prompt,
+                        const int min_value,
+                        const int max_value,
+                        const uint16_t retry_count,
+                        const uint32_t timeout_ms,
+                        const int default_value,
+                        std::optional<std::reference_wrapper<bool>> success_sink) {
+    return get_integral<int>(prompt, min_value, max_value, retry_count, timeout_ms, default_value, success_sink);
+}
+
+uint8_t SerialPort::get_uint8(std::string_view prompt,
+                              const uint8_t min_value,
+                              const uint8_t max_value,
+                              const uint16_t retry_count,
+                              const uint32_t timeout_ms,
+                              const uint8_t default_value,
+                              std::optional<std::reference_wrapper<bool>> success_sink) {
+    return get_integral<uint8_t>(prompt, min_value, max_value, retry_count, timeout_ms, default_value, success_sink);
+}
+
+uint16_t SerialPort::get_uint16(std::string_view prompt,
+                                const uint16_t min_value,
+                                const uint16_t max_value,
+                                const uint16_t retry_count,
+                                const uint32_t timeout_ms,
+                                const uint16_t default_value,
+                                std::optional<std::reference_wrapper<bool>> success_sink) {
+    return get_integral<uint16_t>(prompt, min_value, max_value, retry_count, timeout_ms, default_value, success_sink);
+}
+
+uint32_t SerialPort::get_uint32(std::string_view prompt,
+                                const uint32_t min_value,
+                                const uint32_t max_value,
+                                const uint16_t retry_count,
+                                const uint32_t timeout_ms,
+                                const uint32_t default_value,
+                                std::optional<std::reference_wrapper<bool>> success_sink) {
+    return get_integral<uint32_t>(prompt, min_value, max_value, retry_count, timeout_ms, default_value, success_sink);
 }
