@@ -132,18 +132,49 @@ inline std::string align_into(std::string_view s, size_t width, char align) {
     }
 }
 
+inline std::string repeat_pattern(std::string_view pat, size_t count) {
+    if (count == 0) return {};
+    if (pat.empty()) return std::string(count, ' ');
+    std::string out;
+    out.resize(count);
+    size_t p = 0;
+    for (size_t i = 0; i < count; ++i) {
+        out[i] = pat[p];
+        p = (p + 1) % pat.size();
+    }
+    return out;
+}
+
 // Build a spacer/box line like: "|" + spaces + "|"
-inline std::string make_spacer_line(uint16_t total_width, char edge = '|') {
-    if (total_width <= 1) return std::string(1, edge);
-    if (total_width == 2) return std::string(2, edge);
-    return std::string(1, edge) + repeat(' ', total_width - 2) + std::string(1, edge);
+inline std::string make_spacer_line(uint16_t total_width, std::string_view edge = "|") {
+    if (total_width == 0) return {};
+    if (edge.empty()) return std::string(total_width, ' ');
+    const size_t e = edge.size();
+    if (total_width <= e) return std::string(edge.substr(0, total_width));
+    if (total_width <= 2 * e) return std::string(edge.substr(0, total_width));
+    const uint16_t inner = static_cast<uint16_t>(total_width - 2 * e);
+    std::string out;
+    out.reserve(total_width);
+    out.append(edge);
+    out.append(inner, ' ');
+    out.append(edge);
+    return out;
 }
 
 // Build a rule line like: "+" + "-----" + "+"
-inline std::string make_rule_line(uint16_t total_width, char fill = '-', char edge = '+') {
-    if (total_width <= 1) return std::string(1, edge);
-    if (total_width == 2) return std::string(2, edge);
-    return std::string(1, edge) + repeat(fill, total_width - 2) + std::string(1, edge);
+inline std::string make_rule_line(uint16_t total_width, std::string_view fill = "-", std::string_view edge = "+") {
+    if (total_width == 0) return {};
+    if (edge.empty()) return repeat_pattern(fill, total_width);
+    const size_t e = edge.size();
+    if (total_width <= e) return std::string(edge.substr(0, total_width));
+    if (total_width <= 2 * e) return std::string(edge.substr(0, total_width));
+    const uint16_t inner = static_cast<uint16_t>(total_width - 2 * e);
+    std::string out;
+    out.reserve(total_width);
+    out.append(edge);
+    out += repeat_pattern(fill, inner);
+    out.append(edge);
+    return out;
 }
 
 // Compose a single "boxed" content line with edges and margins.
