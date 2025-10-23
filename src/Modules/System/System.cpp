@@ -19,6 +19,11 @@
 #include <esp_rom_crc.h>
 #include "mbedtls/sha256.h"
 
+#include <Arduino.h>          // LEDC, millis, etc.
+#include <sstream>            // std::istringstream
+#include <esp_rom_crc.h>      // esp_rom_crc32_le
+#include "mbedtls/sha256.h"   // mbedtls SHA256 API
+#include "esp_task_wdt.h"     // Task WDT config
 #include <esp_system.h>
 #include <esp_chip_info.h>
 #include <esp_idf_version.h>
@@ -311,9 +316,9 @@ System::System(ModuleController& controller)
       string("Sample Use: $")+lower(module_name)+" crc32 hello",1,
       [this](string_view args){
         std::string s(args);
-        uint32_t crc = esp_rom_crc32_le(0, (const uint8_t*)s.data(), s.size());
-        char out[16]; snprintf(out, sizeof(out), "0x%08X", crc);
-        this->controller.serial_port.print(out, kCRLF);
+        uint32_t crc = esp_rom_crc32_le(0, reinterpret_cast<const uint8_t*>(s.data()), static_cast<uint32_t>(s.size()));
+        char buf[32]; snprintf(buf, sizeof(buf), "crc32 0x%08lX", static_cast<unsigned long>(crc));
+        this->controller.serial_port.print(buf, kCRLF);
       }
     });
 
@@ -322,13 +327,14 @@ System::System(ModuleController& controller)
       "sha256","SHA256 of text (hex)",
       string("Sample Use: $")+lower(module_name)+" sha256 hello",1,
       [this](string_view args){
-        std::string s(args); uint8_t out[32];
+        std::string s(args);
         uint8_t dig[32];
-        mbedtls_sha256(mac, sizeof(mac), dig, 0);
-        auto hex = toHex(out, sizeof(out));
+        mbedtls_sha256(reinterpret_cast<const unsigned char*>(s.data()), s.size(), dig, 0 /* is224 */);
+        auto hex = toHex(dig, sizeof(dig));
         this->controller.serial_port.print(hex.c_str(), kCRLF);
       }
     });
+
 
     // 18) base64-enc <text>
     commands_storage.push_back({
@@ -434,43 +440,45 @@ System::System(ModuleController& controller)
       }
     });
 
-    // 25) pwm-setup <ch> <pin> <freq> <bits>
-    commands_storage.push_back({
-      "pwm-setup","LEDC setup and attach",
-      string("Sample Use: $")+lower(module_name)+" pwm-setup 0 5 5000 10",4,
-      [this](string_view args){
-        std::istringstream is(std::string(args)); int ch,pin; double freq; int bits;
-        if(!(is>>ch>>pin>>freq>>bits)){ this->controller.serial_port.print("need CH PIN FREQ BITS", kCRLF); return; }
-        ledcSetup(ch, freq, bits);
-        ledcAttachPin(pin, ch);
-        this->controller.serial_port.print("ok", kCRLF);
-      }
-    });
+//    // 25) pwm-setup <ch> <pin> <freq> <bits>
+//    commands_storage.push_back({
+//      "pwm-setup","LEDC setup and attach",
+//      string("Sample Use: $")+lower(module_name)+" pwm-setup 0 5 5000 10",4,
+//      [this](string_view args){
+//        std::istringstream is{std::string(args)}; int ch,pin; double freq; int bits;
+//        if(!(is >> ch >> pin >> freq >> bits)){ this->controller.serial_port.print("need CH PIN FREQ BITS", kCRLF); return; }
+//        ledcSetup(static_cast<uint8_t>(ch), freq, static_cast<uint8_t>(bits));
+//        ledcAttachPin(pin, static_cast<uint8_t>(ch));
+//        this->controller.serial_port.print("ok", kCRLF);
+//      }
+//    });
 
+//    // 26) pwm-write <ch> <duty>
     // 26) pwm-write <ch> <duty>
     commands_storage.push_back({
       "pwm-write","LEDC write duty (0..2^bits-1)",
       string("Sample Use: $")+lower(module_name)+" pwm-write 0 512",2,
       [this](string_view args){
-        std::istringstream is(std::string(args)); int ch; int duty;
-        if(!(is>>ch>>duty)){ this->controller.serial_port.print("need CH DUTY", kCRLF); return; }
-        ledcWrite(ch, duty);
+        std::istringstream is{std::string(args)}; int ch; int duty;
+        if(!(is >> ch >> duty)){ this->controller.serial_port.print("need CH DUTY", kCRLF); return; }
+        ledcWrite(static_cast<uint8_t>(ch), static_cast<uint32_t>(duty));
         this->controller.serial_port.print("ok", kCRLF);
       }
     });
 
-    // 27) pwm-stop <ch> [pin]
-    commands_storage.push_back({
-      "pwm-stop","LEDC detach channel",
-      string("Sample Use: $")+lower(module_name)+" pwm-stop 0 5",2,
-      [this](string_view args){
-        std::istringstream is(std::string(args)); int ch; int pin=-1;
-        if(!(is>>ch)){ this->controller.serial_port.print("need CH [PIN]", kCRLF); return; }
-        if(is>>pin){ ledcDetachPin(pin); }
-        ledcWrite(ch, 0);
-        this->controller.serial_port.print("ok", kCRLF);
-      }
-    });
+
+//    // 27) pwm-stop <ch> [pin]
+//    commands_storage.push_back({
+//      "pwm-stop","LEDC detach channel",
+//      string("Sample Use: $")+lower(module_name)+" pwm-stop 0 5",2,
+//      [this](string_view args){
+//        std::istringstream is(std::string(args)); int ch; int pin=-1;
+//        if(!(is>>ch)){ this->controller.serial_port.print("need CH [PIN]", kCRLF); return; }
+//        if(is>>pin){ ledcDetachPin(pin); }
+//        ledcWrite(ch, 0);
+//        this->controller.serial_port.print("ok", kCRLF);
+//      }
+//    });
 
     // 28) stack
     commands_storage.push_back({
@@ -549,25 +557,36 @@ System::System(ModuleController& controller)
       string("Sample Use: $")+lower(module_name)+" uid",0,
       [this](string_view){
         uint8_t mac[6]; esp_efuse_mac_get_default(mac);
-        uint8_t dig[32]; mbedtls_sha256_ret(mac, sizeof(mac), dig, 0);
+        uint8_t dig[32]; mbedtls_sha256(mac, sizeof(mac), dig, 0 /* is224 */);
         this->controller.serial_port.print(("base_mac "+toHex(mac, sizeof(mac))).c_str(), kCRLF);
         this->controller.serial_port.print(("uid64 "+toHex(dig, 8)).c_str(), kCRLF);
       }
     });
+
 
     // 35) flash
     commands_storage.push_back({
       "flash","Flash size/speed/mode",
       string("Sample Use: $")+lower(module_name)+" flash",0,
       [this](string_view){
-        size_t sz=ESP.getFlashChipSize(); uint32_t hz=ESP.getFlashChipSpeed();
+        size_t sz = ESP.getFlashChipSize();
+        uint32_t hz = ESP.getFlashChipSpeed();
         auto mode = ESP.getFlashChipMode();
-        const char* m="UNK";
-        switch(mode){ case FM_QIO:m="QIO";break; case FM_QOUT:m="QOUT";break; case FM_DIO:m="DIO";break; case FM_DOUT:m="DOUT";break; default:break; }
-        std::string s = "size "+std::to_string((unsigned)sz)+"  speed "+std::to_string((unsigned)hz)+"  mode "+m;
+        const char* m = "UNK";
+        switch(mode){
+          case FM_QIO:  m="QIO";  break;
+          case FM_QOUT: m="QOUT"; break;
+          case FM_DIO:  m="DIO";  break;
+          case FM_DOUT: m="DOUT"; break;
+          default: break;
+        }
+        std::string s = "size "+std::to_string(static_cast<unsigned>(sz))+
+                        "  speed "+std::to_string(static_cast<unsigned>(hz))+
+                        "  mode "+m;
         this->controller.serial_port.print(s.c_str(), kCRLF);
       }
     });
+
 
     // 36) partitions-data
     commands_storage.push_back({
@@ -589,14 +608,14 @@ System::System(ModuleController& controller)
       "partition-read","Hexdump from partition label",
       string("Sample Use: $")+lower(module_name)+" partition-read nvs 0 64",3,
       [this](string_view args){
-        std::istringstream is(std::string(args)); std::string label; uint32_t off=0,len=0;
-        if(!(is>>label>>off>>len)){ this->controller.serial_port.print("need LABEL OFFSET LEN", kCRLF); return; }
+        std::istringstream is{std::string(args)}; std::string label; uint32_t off=0, len=0;
+        if(!(is >> label >> off >> len)){ this->controller.serial_port.print("need LABEL OFFSET LEN", kCRLF); return; }
         if(len==0 || len>256) len=64;
         const esp_partition_t* p = esp_partition_find_first(ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, label.c_str());
         if(!p){ this->controller.serial_port.print("label not found", kCRLF); return; }
         std::vector<uint8_t> buf(len);
-        if(esp_partition_read(p, off, buf.data(), buf.size())!=ESP_OK){ this->controller.serial_port.print("read error", kCRLF); return; }
-        hexdump_lines(this->controller, buf.data(), buf.size(), p->address+off);
+        if(esp_partition_read(p, off, buf.data(), buf.size()) != ESP_OK){ this->controller.serial_port.print("read error", kCRLF); return; }
+        hexdump_lines(this->controller, buf.data(), buf.size(), p->address + off);
       }
     });
 
@@ -652,29 +671,29 @@ System::System(ModuleController& controller)
     });
 
     // 42) wdt <start ms|feed|stop>
-    commands_storage.push_back({
-      "wdt","Task WDT control",
-      string("Sample Use: $")+lower(module_name)+" wdt start 2000",2,
-      [this](string_view args){
-        static bool started=false;
-        std::istringstream is(std::string(args)); std::string sub; is>>sub;
-        if(sub=="start"){
-          uint32_t ms=0; is>>ms; if(ms<100) ms=100;
-          esp_task_wdt_deinit();
-          if(esp_task_wdt_init(ms/1000, true)==ESP_OK && esp_task_wdt_add(NULL)==ESP_OK){
-            started=true; this->controller.serial_port.print("wdt started", kCRLF);
-          } else this->controller.serial_port.print("wdt start error", kCRLF);
-        } else if(sub=="feed"){
-          if(!started){ this->controller.serial_port.print("not started", kCRLF); return; }
-          esp_task_wdt_reset(); this->controller.serial_port.print("ok", kCRLF);
-        } else if(sub=="stop"){
-          if(started){ esp_task_wdt_delete(NULL); esp_task_wdt_deinit(); started=false; }
-          this->controller.serial_port.print("stopped", kCRLF);
-        } else {
-          this->controller.serial_port.print("start <ms>|feed|stop", kCRLF);
-        }
-      }
-    });
+//    commands_storage.push_back({
+//      "wdt","Task WDT control",
+//      string("Sample Use: $")+lower(module_name)+" wdt start 2000",2,
+//      [this](string_view args){
+//        static bool started=false;
+//        std::istringstream is(std::string(args)); std::string sub; is>>sub;
+//        if(sub=="start"){
+//          uint32_t ms=0; is>>ms; if(ms<100) ms=100;
+//          esp_task_wdt_deinit();
+//          if(esp_task_wdt_init(ms/1000, true)==ESP_OK && esp_task_wdt_add(NULL)==ESP_OK){
+//            started=true; this->controller.serial_port.print("wdt started", kCRLF);
+//          } else this->controller.serial_port.print("wdt start error", kCRLF);
+//        } else if(sub=="feed"){
+//          if(!started){ this->controller.serial_port.print("not started", kCRLF); return; }
+//          esp_task_wdt_reset(); this->controller.serial_port.print("ok", kCRLF);
+//        } else if(sub=="stop"){
+//          if(started){ esp_task_wdt_delete(NULL); esp_task_wdt_deinit(); started=false; }
+//          this->controller.serial_port.print("stopped", kCRLF);
+//        } else {
+//          this->controller.serial_port.print("start <ms>|feed|stop", kCRLF);
+//        }
+//      }
+//    });
 }
 
 void System::begin_routines_required (const ModuleConfig& cfg) {
