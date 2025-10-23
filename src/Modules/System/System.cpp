@@ -440,18 +440,23 @@ System::System(ModuleController& controller)
       }
     });
 
-//    // 25) pwm-setup <ch> <pin> <freq> <bits>
-//    commands_storage.push_back({
-//      "pwm-setup","LEDC setup and attach",
-//      string("Sample Use: $")+lower(module_name)+" pwm-setup 0 5 5000 10",4,
-//      [this](string_view args){
-//        std::istringstream is{std::string(args)}; int ch,pin; double freq; int bits;
-//        if(!(is >> ch >> pin >> freq >> bits)){ this->controller.serial_port.print("need CH PIN FREQ BITS", kCRLF); return; }
-//        ledcSetup(static_cast<uint8_t>(ch), freq, static_cast<uint8_t>(bits));
-//        ledcAttachPin(pin, static_cast<uint8_t>(ch));
-//        this->controller.serial_port.print("ok", kCRLF);
-//      }
-//    });
+    // 25) pwm-setup <ch> <pin> <freq> <bits>
+    commands_storage.push_back({
+      "pwm-setup","LEDC setup and attach",
+      string("Sample Use: $")+lower(module_name)+" pwm-setup 0 5 5000 10",4,
+      [this](string_view args){
+        std::istringstream is{std::string(args)}; int ch, pin; double freq; int bits;
+        if(!(is >> ch >> pin >> freq >> bits)){ this->controller.serial_port.print("need CH PIN FREQ BITS", kCRLF); return; }
+        (void)ch; // channel unused in pin-centric API
+        if(!ledcAttach(static_cast<uint8_t>(pin),
+                       static_cast<uint32_t>(freq),
+                       static_cast<uint8_t>(bits))){
+          this->controller.serial_port.print("attach failed", kCRLF); return;
+        }
+        this->controller.serial_port.print("ok", kCRLF);
+      }
+    });
+
 
 //    // 26) pwm-write <ch> <duty>
     // 26) pwm-write <ch> <duty>
@@ -467,18 +472,19 @@ System::System(ModuleController& controller)
     });
 
 
-//    // 27) pwm-stop <ch> [pin]
-//    commands_storage.push_back({
-//      "pwm-stop","LEDC detach channel",
-//      string("Sample Use: $")+lower(module_name)+" pwm-stop 0 5",2,
-//      [this](string_view args){
-//        std::istringstream is(std::string(args)); int ch; int pin=-1;
-//        if(!(is>>ch)){ this->controller.serial_port.print("need CH [PIN]", kCRLF); return; }
-//        if(is>>pin){ ledcDetachPin(pin); }
-//        ledcWrite(ch, 0);
-//        this->controller.serial_port.print("ok", kCRLF);
-//      }
-//    });
+    // 27) pwm-stop <ch> [pin]
+    commands_storage.push_back({
+      "pwm-stop","LEDC detach channel",
+      string("Sample Use: $")+lower(module_name)+" pwm-stop 0 5",2,
+      [this](string_view args){
+        std::istringstream is{std::string(args)}; int ch; int pin = -1;
+        if(!(is >> ch)){ this->controller.serial_port.print("need CH [PIN]", kCRLF); return; }
+        if(is >> pin){ ledcDetach(static_cast<uint8_t>(pin)); }
+        ledcWrite(static_cast<uint8_t>(ch), 0);
+        this->controller.serial_port.print("ok", kCRLF);
+      }
+    });
+
 
     // 28) stack
     commands_storage.push_back({
@@ -671,29 +677,38 @@ System::System(ModuleController& controller)
     });
 
     // 42) wdt <start ms|feed|stop>
-//    commands_storage.push_back({
-//      "wdt","Task WDT control",
-//      string("Sample Use: $")+lower(module_name)+" wdt start 2000",2,
-//      [this](string_view args){
-//        static bool started=false;
-//        std::istringstream is(std::string(args)); std::string sub; is>>sub;
-//        if(sub=="start"){
-//          uint32_t ms=0; is>>ms; if(ms<100) ms=100;
-//          esp_task_wdt_deinit();
-//          if(esp_task_wdt_init(ms/1000, true)==ESP_OK && esp_task_wdt_add(NULL)==ESP_OK){
-//            started=true; this->controller.serial_port.print("wdt started", kCRLF);
-//          } else this->controller.serial_port.print("wdt start error", kCRLF);
-//        } else if(sub=="feed"){
-//          if(!started){ this->controller.serial_port.print("not started", kCRLF); return; }
-//          esp_task_wdt_reset(); this->controller.serial_port.print("ok", kCRLF);
-//        } else if(sub=="stop"){
-//          if(started){ esp_task_wdt_delete(NULL); esp_task_wdt_deinit(); started=false; }
-//          this->controller.serial_port.print("stopped", kCRLF);
-//        } else {
-//          this->controller.serial_port.print("start <ms>|feed|stop", kCRLF);
-//        }
-//      }
-//    });
+    commands_storage.push_back({
+      "wdt","Task WDT control",
+      string("Sample Use: $")+lower(module_name)+" wdt start 2000",2,
+      [this](string_view args){
+        static bool started = false;
+        std::istringstream is{std::string(args)}; std::string sub; is >> sub;
+        if(sub=="start"){
+          uint32_t ms = 0; is >> ms; if(ms < 100) ms = 100;
+          esp_task_wdt_deinit();
+          esp_task_wdt_config_t cfg{};
+          cfg.timeout_ms = ms;
+    #if ESP_IDF_VERSION_MAJOR >= 5
+          cfg.trigger_panic = true;
+          cfg.idle_core_mask = 1; // core 0 on ESP32-C3
+    #endif
+      if(esp_task_wdt_init(&cfg) == ESP_OK && esp_task_wdt_add(nullptr) == ESP_OK){
+        started = true; this->controller.serial_port.print("wdt started", kCRLF);
+      } else {
+        this->controller.serial_port.print("wdt start error", kCRLF);
+      }
+    } else if(sub=="feed"){
+      if(!started){ this->controller.serial_port.print("not started", kCRLF); return; }
+      esp_task_wdt_reset(); this->controller.serial_port.print("ok", kCRLF);
+    } else if(sub=="stop"){
+      if(started){ esp_task_wdt_delete(nullptr); esp_task_wdt_deinit(); started = false; }
+      this->controller.serial_port.print("stopped", kCRLF);
+    } else {
+      this->controller.serial_port.print("start <ms>|feed|stop", kCRLF);
+    }
+  }
+});
+
 }
 
 void System::begin_routines_required (const ModuleConfig& cfg) {

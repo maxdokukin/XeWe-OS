@@ -107,7 +107,6 @@ CDCOnBoot=cdc,\
 CPUFreq=160,\
 DebugLevel=none,\
 EraseFlash=all,\
-FlashFreq=80,\
 FlashMode=qio,\
 FlashSize=4M,\
 JTAGAdapter=default,\
