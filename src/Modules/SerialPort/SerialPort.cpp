@@ -10,7 +10,7 @@
 // src/Modules/SerialPort/SerialPort.cpp
 #include "SerialPort.h"
 #include "../../ModuleController/ModuleController.h"
-
+#include <cstring>  // strlen
 
 SerialPort::SerialPort(ModuleController& controller)
     : Module(controller,
@@ -64,7 +64,7 @@ void SerialPort::reset (const bool verbose, const bool do_restart) {
     Module::reset(verbose, do_restart);
 }
 
-// SerialPort.cpp
+// printers
 void SerialPort::print(std::string_view message,
                        std::string_view edge_character,
                        const char text_align,
@@ -98,7 +98,6 @@ void SerialPort::print(std::string_view message,
     }
 }
 
-// SerialPort.cpp
 void SerialPort::printf(std::string_view edge_character,
                         const char text_align,
                         const uint16_t message_width,
@@ -129,8 +128,6 @@ void SerialPort::printf(std::string_view edge_character,
     print(msg, edge_character, text_align, message_width, margin_l, margin_r, end);
 }
 
-
-// SerialPort.cpp
 void SerialPort::print_separator(const uint16_t total_width,
                                  std::string_view fill,
                                  std::string_view edge_character) {
@@ -158,8 +155,6 @@ void SerialPort::print_separator(const uint16_t total_width,
     write_line_crlf(line);
 }
 
-
-// SerialPort.cpp
 void SerialPort::print_spacer(const uint16_t total_width,
                               std::string_view edge_character) {
     std::string line;
@@ -184,8 +179,6 @@ void SerialPort::print_spacer(const uint16_t total_width,
     write_line_crlf(line);
 }
 
-
-// SerialPort.cpp
 void SerialPort::print_header(std::string_view message,
                               const uint16_t total_width,
                               std::string_view edge_character,
@@ -205,7 +198,6 @@ void SerialPort::print_header(std::string_view message,
         print_separator(total_width, sep_fill, cross_edge_character);
     }
 }
-
 
 // getters
 string SerialPort::get_string(string_view prompt,
@@ -283,7 +275,7 @@ float SerialPort::get_float(string_view prompt,
                             const float default_value,
                             optional<reference_wrapper<bool>> success_sink) {
     float minv = min_value, maxv = max_value;
-    if (minv > maxv) swap(minv, maxv);
+    if (minv > maxv) std::swap(minv, maxv);
 
     auto checker = [&](const string& line, float& out, const char*& err)->bool {
         const char* s = line.c_str();
@@ -385,7 +377,7 @@ void SerialPort::printf_raw(const char* fmt, ...) {
 
     if (needed <= 0) { va_end(ap2); return; }
 
-    vector<char> buf(static_cast<size_t>(needed) + 1u);
+    std::vector<char> buf(static_cast<size_t>(needed) + 1u);
     vsnprintf(buf.data(), buf.size(), fmt, ap2);
     va_end(ap2);
 
@@ -422,7 +414,7 @@ T SerialPort::get_integral(string_view prompt,
                            const T default_value,
                            optional<reference_wrapper<bool>> success_sink) {
     T minv = min_value, maxv = max_value;
-    if (minv > maxv) swap(minv, maxv);
+    if (minv > maxv) std::swap(minv, maxv);
 
     auto checker = [&](const string& line, T& out, const char*& err)->bool {
         T v{};
@@ -476,40 +468,40 @@ void SerialPort::test() {
     // BOXED PRINT API
     banner("print_separator");
     printf_raw("[TEST] in : total_width=20, fill='-', edge='+'\r\n");
-    print_separator(20, '-', '+');
+    print_separator(20, "-", "+");
     printf_raw("[TEST] out: printed\r\n");
     done("print_separator");
 
     banner("print_spacer");
     printf_raw("[TEST] in : total_width=20, edge='|'\r\n");
-    print_spacer(20, '|');
+    print_spacer(20, "|");
     printf_raw("[TEST] out: printed\r\n");
     done("print_spacer");
 
     banner("print_header");
     printf_raw("[TEST] in : message=\"Header\\sepSub\", total_width=20, edge='|', sep_edge='+', sep_fill='-'\r\n");
-    print_header("Header\\sepSub", 20, '|', '+', '-');
+    print_header("Header\\sepSub", 20, "|", "+", "-");
     printf_raw("[TEST] out: printed\r\n");
     done("print_header");
 
     banner("print");
     printf_raw("[TEST] in : message=\"left\", edge='|', align='l', width=10, ml=1, mr=1, end=CRLF\r\n");
-    print("left",  '|', 'l', 10, 1, 1, kCRLF);
+    print("left",  "|", 'l', 10, 1, 1, kCRLF);
     printf_raw("[TEST] out: printed\r\n");
     printf_raw("[TEST] in : message=\"center\", edge='|', align='c', width=12, ml=0, mr=0, end=CRLF\r\n");
-    print("center",'|', 'c', 12, 0, 0, kCRLF);
+    print("center","|", 'c', 12, 0, 0, kCRLF);
     printf_raw("[TEST] out: printed\r\n");
     printf_raw("[TEST] in : message=\"right\", edge='|', align='r', width=12, ml=2, mr=0, end=CRLF\r\n");
-    print("right", '|', 'r', 12, 2, 0, kCRLF);
+    print("right", "|", 'r', 12, 2, 0, kCRLF);
     printf_raw("[TEST] out: printed\r\n");
-    print("this is a pretty long centered text. i am curious if wrapping is working well",'|', 'c', 12, 0, 0, kCRLF);
-    print("this is a pretty long left text. i am curious if wrapping is working well",'|', 'l', 12, 0, 0, kCRLF);
-    print("this is a pretty long right text. i am curious if wrapping is working well",'|', 'r', 12, 0, 0, kCRLF);
+    print("this is a pretty long centered text. i am curious if wrapping is working well","|", 'c', 12, 0, 0, kCRLF);
+    print("this is a pretty long left text. i am curious if wrapping is working well","|", 'l', 12, 0, 0, kCRLF);
+    print("this is a pretty long right text. i am curious if wrapping is working well","|", 'r', 12, 0, 0, kCRLF);
     done("print");
 
     banner("printf (boxed)");
     printf_raw("[TEST] in : edge='|', align='l', width=10, ml=0, mr=0, end=CRLF, fmt=\"fmt %%d %%s\", 7, \"seven\"\r\n");
-    printf('|','l', 10, 0, 0, kCRLF, "fmt %d %s", 7, "seven");
+    printf("|", 'l', 10, 0, 0, kCRLF, "fmt %d %s", 7, "seven");
     printf_raw("[TEST] out: printed\r\n");
     done("printf (boxed)");
 
@@ -619,9 +611,9 @@ void SerialPort::test() {
     // SUMMARY
     banner("summary");
     printf_raw("[TEST] in : none\r\n");
-    print_separator(16, '=', '+');
-    print("done", '|', 'c', 10, 0, 0, kCRLF);
-    print_separator(16, '=', '+');
+    print_separator(16, "=", "+");
+    print("done", "|", 'c', 10, 0, 0, kCRLF);
+    print_separator(16, "=", "+");
     printf_raw("[TEST] out: printed\r\n");
     done("summary");
 }
