@@ -31,22 +31,25 @@ public:
     void                        test                        ();
     // printers
     void                        print                       (string_view            message                 = {},
+                                                             string_view            end                     = kCRLF,
                                                              string_view            edge_character          = {},
                                                              const char             text_align              = 'l',
                                                              const char             wrap_mode               = 'w',
                                                              const uint16_t         message_width           = 0,
                                                              const uint16_t         margin_l                = 0,
-                                                             const uint16_t         margin_r                = 0,
-                                                             string_view            end                     = kCRLF
+                                                             const uint16_t         margin_r                = 0
                                                             );
-    void                        printf                      (string_view            edge_character,
+    void                        printf_fmt                  (string_view            edge_character,
+                                                             string_view            end,
                                                              const char             text_align,
                                                              const char             wrap_mode,
                                                              const uint16_t         message_width,
                                                              const uint16_t         margin_l,
                                                              const uint16_t         margin_r,
-                                                             string_view            end,
                                                              const char*            fmt,
+                                                             ...
+                                                            );
+    void                        printf                      (const char* fmt,
                                                              ...
                                                             );
     void                        print_separator             (const uint16_t         total_width             = 50,

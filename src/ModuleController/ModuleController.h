@@ -31,5 +31,5 @@ public:
     CommandParser               command_parser;
 private:
     Module*                     modules                     [MODULE_COUNT] = {};
-    vector<CommandsGroup>  command_groups;
+    vector<CommandsGroup>       command_groups;
 };

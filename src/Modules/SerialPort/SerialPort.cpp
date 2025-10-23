@@ -66,13 +66,13 @@ void SerialPort::reset (const bool verbose, const bool do_restart) {
 
 // printers
 void SerialPort::print(std::string_view message,
+                       std::string_view end,
                        std::string_view edge_character,
                        const char text_align,
                        const char wrap_mode,
                        const uint16_t message_width,
                        const uint16_t margin_l,
-                       const uint16_t margin_r,
-                       std::string_view end) {
+                       const uint16_t margin_r) {
     auto lines_sv = split_lines_sv(message, '\n');
     const bool use_wrap = (message_width > 0);
 
@@ -101,16 +101,16 @@ void SerialPort::print(std::string_view message,
     }
 }
 
-void SerialPort::printf(std::string_view edge_character,
+void SerialPort::printf_fmt(std::string_view end,
+                        std::string_view edge_character,
                         const char text_align,
                         const char wrap_mode,
                         const uint16_t message_width,
                         const uint16_t margin_l,
                         const uint16_t margin_r,
-                        std::string_view end,
                         const char* fmt, ...) {
     if (!fmt) {
-        print("", edge_character, text_align, wrap_mode, message_width, margin_l, margin_r, end);
+        print("", end, edge_character, text_align, wrap_mode, message_width, margin_l, margin_r);
         return;
     }
 
@@ -129,8 +129,30 @@ void SerialPort::printf(std::string_view edge_character,
     }
     va_end(ap2);
 
-    print(msg, edge_character, text_align, wrap_mode, message_width, margin_l, margin_r, end);
+    print(msg, end, edge_character, text_align, wrap_mode, message_width, margin_l, margin_r);
 }
+
+void SerialPort::printf(const char* fmt, ...) {
+    if (!fmt) { print(); return; }
+
+    va_list ap;
+    va_start(ap, fmt);
+    va_list ap2;
+    va_copy(ap2, ap);
+    const int needed = vsnprintf(nullptr, 0, fmt, ap);
+    va_end(ap);
+
+    std::string msg;
+    if (needed > 0) {
+        std::vector<char> buf(static_cast<size_t>(needed) + 1u);
+        vsnprintf(buf.data(), buf.size(), fmt, ap2);
+        msg.assign(buf.data(), static_cast<size_t>(needed));
+    }
+    va_end(ap2);
+
+    print(msg);
+}
+
 
 void SerialPort::print_separator(const uint16_t total_width,
                                  std::string_view fill,
@@ -198,7 +220,7 @@ void SerialPort::print_header(std::string_view message,
             : total_width;
 
     for (auto& p : parts) {
-        print(p, edge_character, 'c', 'w', content_width, 0, 0, kCRLF);
+        print(p, kCRLF, edge_character, 'c', 'w', content_width, 0, 0);
         print_separator(total_width, sep_fill, cross_edge_character);
     }
 }
@@ -490,7 +512,7 @@ void SerialPort::test() {
 
     banner("print");
     printf_raw("[TEST] in : message=\"left\", edge='|', align='l', wrap='w', width=10, ml=1, mr=1, end=CRLF\r\n");
-    print("left",  "|", 'l', 'w', 10, 1, 1, kCRLF);
+    print("left",  kCRLF, "|", 'l', 'w', 10, 1, 1);
     printf_raw("[TEST] out: printed\r\n");
 
     banner("print()");
@@ -499,24 +521,24 @@ void SerialPort::test() {
     printf_raw("[TEST] out: printed\r\n");
 
     printf_raw("[TEST] in : message=\"center\", edge='|', align='c', wrap='w', width=12, ml=0, mr=0, end=CRLF\r\n");
-    print("center","|", 'c', 'w', 12, 0, 0, kCRLF);
+    print("center", kCRLF, "|", 'c', 'w', 12, 0, 0);
     printf_raw("[TEST] out: printed\r\n");
 
     printf_raw("[TEST] in : message=\"right\", edge='|', align='r', wrap='w', width=12, ml=2, mr=0, end=CRLF\r\n");
-    print("right", "|", 'r', 'w', 12, 2, 0, kCRLF);
+    print("right", kCRLF, "|", 'r', 'w', 12, 2, 0);
     printf_raw("[TEST] out: printed\r\n");
 
-    print("this is a pretty long centered text. i am curious if wrapping is working well",
-          "|", 'c', 'w', 12, 0, 0, kCRLF);
-    print("this is a pretty long left text. i am curious if wrapping is working well",
-          "|", 'l', 'w', 12, 0, 0, kCRLF);
-    print("this is a pretty long right text. i am curious if wrapping is working well",
-          "|", 'r', 'w', 12, 0, 0, kCRLF);
+    print("this is a pretty long centered text. i am curious if wrapping is working well", kCRLF,
+          "|", 'c', 'w', 12, 0, 0);
+    print("this is a pretty long left text. i am curious if wrapping is working well", kCRLF,
+          "|", 'l', 'w', 12, 0, 0);
+    print("this is a pretty long right text. i am curious if wrapping is working well", kCRLF,
+          "|", 'r', 'w', 12, 0, 0);
     done("print");
 
     banner("printf (boxed)");
     printf_raw("[TEST] in : edge='|', align='l', width=10, ml=0, mr=0, end=CRLF, fmt=\"fmt %%d %%s\", 7, \"seven\"\r\n");
-    printf("|", 'l', 'w', 10, 0, 0, kCRLF, "fmt %d %s", 7, "seven");
+    printf_fmt("|", kCRLF, 'l', 'w', 10, 0, 0, "fmt %d %s", 7, "seven");
     printf_raw("[TEST] out: printed\r\n");
     done("printf (boxed)");
 
@@ -627,7 +649,7 @@ void SerialPort::test() {
     banner("summary");
     printf_raw("[TEST] in : none\r\n");
     print_separator(16, "=", "+");
-    print("done", "|", 'c', 'w', 10, 0, 0, kCRLF);
+    print("done", kCRLF, "|", 'c', 'w', 10, 0, 0);
     print_separator(16, "=", "+");
     printf_raw("[TEST] out: printed\r\n");
     done("summary");
