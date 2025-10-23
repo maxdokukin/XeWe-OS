@@ -149,30 +149,31 @@ inline std::string make_rule_line(uint16_t total_width, char fill = '-', char ed
 // Compose a single "boxed" content line with edges and margins.
 // message_width == 0 means: do NOT align/stretch; just place content between margins and edges.
 inline std::string compose_box_line(std::string_view content,
-                                    char edge,
+                                    std::string_view edge,
                                     size_t message_width,
                                     size_t margin_l,
                                     size_t margin_r,
                                     char align) {
+    const size_t edge_len = edge.size();
+    const size_t field    = (message_width == 0) ? content.size() : message_width;
+
     std::string line;
-    line.reserve(2 + margin_l + margin_r + (message_width ? message_width : content.size()));
-    line.push_back(edge);
+    line.reserve(edge_len * 2 + margin_l + field + margin_r);
+
+    if (edge_len) line.append(edge);
 
     if (message_width == 0) {
-        // No target field width: just margins + content.
         line += repeat(' ', margin_l);
-        line += content;
+        line.append(content);
         line += repeat(' ', margin_r);
-        line.push_back(edge);
-        return line;
+    } else {
+        std::string payload = align_into(content, message_width, align);
+        line += repeat(' ', margin_l);
+        line += payload;
+        line += repeat(' ', margin_r);
     }
 
-    // message_width is the content field width; align inside that area.
-    std::string payload = align_into(content, message_width, align);
-    line += repeat(' ', margin_l);
-    line += payload;
-    line += repeat(' ', margin_r);
-    line.push_back(edge);
+    if (edge_len) line.append(edge);
     return line;
 }
 

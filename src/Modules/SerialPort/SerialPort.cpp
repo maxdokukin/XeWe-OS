@@ -66,7 +66,7 @@ void SerialPort::reset (const bool verbose, const bool do_restart) {
 
 //printers
 void SerialPort::print(string_view  message,
-                       const char   edge_character,
+                       string_view  edge_character,
                        const char   text_align,
                        const uint16_t message_width,
                        const uint16_t margin_l,
@@ -100,7 +100,7 @@ void SerialPort::print(string_view  message,
     }
 }
 
-void SerialPort::printf(const char        edge_character,
+void SerialPort::printf(string_view       edge_character,
                         const char        text_align,
                         const uint16_t    message_width,
                         const uint16_t    margin_l,
@@ -139,14 +139,14 @@ void SerialPort::print_separator(const uint16_t total_width,
 }
 
 void SerialPort::print_spacer(const uint16_t total_width,
-                              const char     edge) {
-    std::string line = make_spacer_line(total_width, edge);
+                              string_view     edge_character) {
+    std::string line = make_spacer_line(total_width, edge_character);
     write_line_crlf(line);
 }
 
 void SerialPort::print_header(string_view  message,
                               const uint16_t total_width,
-                              const char   edge,
+                              string_view   edge_character,
                               const char   sep_edge,
                               const char   sep_fill) {
     print_separator(total_width, sep_fill, sep_edge);
@@ -154,7 +154,7 @@ void SerialPort::print_header(string_view  message,
     auto parts = split_by_token(message, "\\sep");
     const uint16_t content_width = (total_width >= 2) ? (total_width - 2) : total_width;
     for (auto& p : parts) {
-        print(p, edge, 'c', content_width, 0, 0, kCRLF);
+        print(p, edge_character, 'c', content_width, 0, 0, kCRLF);
         print_separator(total_width, sep_fill, sep_edge);
     }
 }

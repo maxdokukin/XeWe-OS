@@ -38,19 +38,19 @@ public:
     void                        test                        ();
     // printers
     void                        print                       (string_view            message         = {},
-                                                             const char             edge_character  = '|',
+                                                             string_view            edge_character  = {},
                                                              const char             text_align      = 'l',
                                                              const uint16_t         message_width   = 0,
                                                              const uint16_t         margin_l        = 0,
                                                              const uint16_t         margin_r        = 0,
                                                              string_view            end             = kCRLF
                                                             );
-    void                        printf                      (const char             edge_character,
-                                                             const char             text_align,
-                                                             const uint16_t         message_width,
-                                                             const uint16_t         margin_l,
-                                                             const uint16_t         margin_r,
-                                                             const string_view      end,
+    void                        printf                      (string_view            edge_character  = {},
+                                                             const char             text_align      = 'l',
+                                                             const uint16_t         message_width   = 0,
+                                                             const uint16_t         margin_l        = 0,
+                                                             const uint16_t         margin_r        = 0,
+                                                             const string_view      end             = kCRLF,
                                                              const char*            fmt,
                                                                                     ...
                                                             );
@@ -59,11 +59,11 @@ public:
                                                              const char             edge            = '+'
                                                             );
     void                        print_spacer                (const uint16_t         total_width     = 50,
-                                                             const char             edge            = '|'
+                                                             string_view            edge_character  = {}
                                                             );
     void                        print_header                (string_view            message,
                                                              const uint16_t         total_width     = 50,
-                                                             const char             edge            = '|',
+                                                             string_view            edge_character  = {},
                                                              const char             sep_edge        = '+',
                                                              const char             sep_fill        = '-'
                                                             );
