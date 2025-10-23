@@ -11,12 +11,16 @@
 #pragma once
 
 #include "../../Module/Module.h"
-#include <string>
-#include <string_view>
 #include <optional>
 #include <functional>
 #include <cstdint>
 #include <limits>
+#include <cstdarg>
+#include <cstdio>
+#include <vector>
+#include <limits>
+#include <type_traits>
+#include <cstdlib>   // strtod
 
 struct SerialPortConfig : public ModuleConfig {
     unsigned long baud_rate = 9600;
@@ -31,7 +35,6 @@ public:
     void                        reset                       (const bool             verbose         = false,
                                                              const bool             do_restart      = true
                                                              ) override;
-
     void                        test                        ();
     // printers
     void                        print                       (string_view            message         = {},
