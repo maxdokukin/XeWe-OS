@@ -1,0 +1,1 @@
+redesigned printf and print
