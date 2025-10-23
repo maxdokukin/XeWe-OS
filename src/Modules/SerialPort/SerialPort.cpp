@@ -78,8 +78,8 @@ void SerialPort::test() {
     done("println_raw");
 
     banner("printf_raw");
-    printf_raw("[TEST] in : fmt=\"num=%d str=%s\", 42, \"ok\"\r\n");
-    printf_raw("num=%d str=%s", 42, "ok");
+    printf_raw("[TEST] in : fmt=\"num=%%d str=%%s\", 42, \"ok\"\r\n");
+    printf_raw("num=%d str=%s\r\n", 42, "ok");
     printf_raw("[TEST] out: printed\r\n");
     done("printf_raw");
 
@@ -115,7 +115,7 @@ void SerialPort::test() {
     done("print");
 
     banner("printf (boxed)");
-    printf_raw("[TEST] in : edge='|', align='l', width=10, ml=0, mr=0, end=CRLF, fmt=\"fmt %d %s\", 7, \"seven\"\r\n");
+    printf_raw("[TEST] in : edge='|', align='l', width=10, ml=0, mr=0, end=CRLF, fmt=\"fmt %%d %%s\", 7, \"seven\"\r\n");
     printf('|','l', 10, 0, 0, kCRLF, "fmt %d %s", 7, "seven");
     printf_raw("[TEST] out: printed\r\n");
     done("printf (boxed)");
@@ -290,13 +290,22 @@ void SerialPort::println_raw(string_view message) {
 }
 
 void SerialPort::printf_raw(const char* fmt, ...) {
+    if (!fmt) return;
     va_list ap;
     va_start(ap, fmt);
-    std::string out = vformat(fmt, ap);
+
+    va_list ap2;
+    va_copy(ap2, ap);
+    int needed = vsnprintf(nullptr, 0, fmt, ap);
     va_end(ap);
-    if (!out.empty()) {
-        Serial.write(reinterpret_cast<const uint8_t*>(out.data()), out.size());
-    }
+
+    if (needed <= 0) { va_end(ap2); return; }
+
+    std::vector<char> buf(static_cast<size_t>(needed) + 1u);
+    vsnprintf(buf.data(), buf.size(), fmt, ap2);
+    va_end(ap2);
+
+    Serial.write(reinterpret_cast<const uint8_t*>(buf.data()), needed);
 }
 
 void SerialPort::print(string_view  message,
@@ -344,10 +353,26 @@ void SerialPort::printf(const char        edge_character,
                         const string_view end,
                         const char*       fmt,
                                            ...) {
+    if (!fmt) {
+        print("", edge_character, text_align, message_width, margin_l, margin_r, end);
+        return;
+    }
+
     va_list ap;
     va_start(ap, fmt);
-    std::string msg = vformat(fmt, ap);
+
+    va_list ap2;
+    va_copy(ap2, ap);
+    int needed = vsnprintf(nullptr, 0, fmt, ap);
     va_end(ap);
+
+    std::string msg;
+    if (needed > 0) {
+        msg.resize(static_cast<size_t>(needed));
+        vsnprintf(msg.data(), msg.size() + 1, fmt, ap2);
+    }
+    va_end(ap2);
+
     print(msg, edge_character, text_align, message_width, margin_l, margin_r, end);
 }
 
