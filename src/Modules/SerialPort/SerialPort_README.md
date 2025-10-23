@@ -1,71 +1,73 @@
 # SerialPort Module
 
-A compact module for line‑oriented serial I/O. It provides:
-- **Raw output** helpers.
-- **Framed/boxed output** with edges, margins, alignment, and **word‑wrap by default**.
-- **Separators, spacers, and headers** for quick UI framing.
-- **Typed input getters** with validation, retries, and timeouts.
-
-The loop echoes input bytes and assembles complete lines. Getters sit on top of that loop and enforce constraints.
+Line-oriented serial I/O with raw writes, framed prints, word-wrapping, and typed input.
+The module echoes incoming bytes, assembles complete lines, and provides simple UI helpers.
 
 ---
 
-## Quick overview
+## Overview
 
-### Key prints
+### Printing (framed output)
 ```cpp
-// Word‑wrap by default ('w'). Use 'c' for fixed character wrap.
-void print(string_view message            = {},
-           string_view edge_character     = {},
-           const char  text_align         = 'l',   // 'l' | 'c' | 'r'
-           const char  wrap_mode          = 'w',   // 'w' word | 'c' char
-           const uint16_t message_width   = 0,     // 0 = no wrap, no align/pad
-           const uint16_t margin_l        = 0,
-           const uint16_t margin_r        = 0,
-           string_view   end              = kCRLF);
-
-void printf(string_view  edge_character,
-            const char   text_align,
-            const char   wrap_mode,              // 'w' or 'c'
-            const uint16_t message_width,
-            const uint16_t margin_l,
-            const uint16_t margin_r,
-            string_view   end,
-            const char*   fmt, ...);
+// Word-wrap by default ('w'). Use 'c' for fixed character wrap.
+// Alignment applies only when message_width > 0.
+void print(std::string_view message = {},
+           std::string_view end = kCRLF,
+           std::string_view edge_character = {},
+           const char       text_align = 'l',     // 'l' | 'c' | 'r'
+           const char       wrap_mode  = 'w',     // 'w' word | 'c' char
+           const uint16_t   message_width = 0,    // 0 = no wrap, no pad
+           const uint16_t   margin_l = 0,
+           const uint16_t   margin_r = 0);
 ```
 
-- `wrap_mode='w'` keeps whole words on a line when possible. Words longer than `message_width` are hard‑split.
-- `wrap_mode='c'` uses strict fixed‑width chunks.
-- `message_width==0` disables wrapping and padding. Content is placed as‑is between edges and margins.
-- `text_align` applies only when `message_width>0`.
+```cpp
+// printf with framing
+void printf_fmt(std::string_view edge_character,
+                std::string_view end,
+                const char       text_align,
+                const char       wrap_mode,       // 'w' or 'c'
+                const uint16_t   message_width,
+                const uint16_t   margin_l,
+                const uint16_t   margin_r,
+                const char*      fmt, ...);
 
-### Other framing
+// Convenience printf that uses print() defaults.
+void printf(const char* fmt, ...);
+```
+
+Behavior:
+- `wrap_mode='w'` keeps whole words on a line when possible. Words longer than `message_width` are hard-split.
+- `wrap_mode='c'` uses strict fixed-width chunks.
+- `message_width==0` disables wrapping and padding. Content is placed as-is between edges and margins.
+
+### Other framing helpers
 ```cpp
 void print_separator(uint16_t total_width=50,
-                     string_view fill="-",
-                     string_view edge_character="+");
+                     std::string_view fill="-",
+                     std::string_view edge_character="+");
 
 void print_spacer(uint16_t total_width=50,
-                  string_view edge_character="|");
+                  std::string_view edge_character="|");
 
-void print_header(string_view message,
+void print_header(std::string_view message,
                   uint16_t total_width=50,
-                  string_view edge_character="|",
-                  string_view cross_edge_character="+",
-                  string_view sep_fill="-");
+                  std::string_view edge_character="|",
+                  std::string_view cross_edge_character="+",
+                  std::string_view sep_fill="-");
 ```
 
 ### Typed input getters
 ```cpp
-string  get_string(...);
-int     get_int(...);
-uint8_t get_uint8(...);
-uint16_t get_uint16(...);
-uint32_t get_uint32(...);
-float   get_float(...);
-bool    get_yn(...);
+std::string get_string(...);
+int         get_int(...);
+uint8_t     get_uint8(...);
+uint16_t    get_uint16(...);
+uint32_t    get_uint32(...);
+float       get_float(...);
+bool        get_yn(...);
 ```
-All getters: prompt → read line (with optional timeout) → parse/validate → retry up to `retry_count` (`0` = infinite) → default on failure.
+All getters: prompt → read line (optional timeout) → parse/validate → retry up to `retry_count` (`0` = infinite) → default on failure.
 
 ---
 
@@ -90,28 +92,31 @@ sp.loop();
 sp.print_header("Serial Port\\sepReady", 40);
 sp.print_separator(40, "=", "+");
 
-sp.print("left",   "|", 'l', 'w', 12, 1, 1);
-sp.print("center", "|", 'c', 'w', 12, 0, 0);
-sp.print("right",  "|", 'r', 'w', 12, 2, 0);
+sp.print("left",   kCRLF, "|", 'l', 'w', 12, 1, 1);
+sp.print("center", kCRLF, "|", 'c', 'w', 12, 0, 0);
+sp.print("right",  kCRLF, "|", 'r', 'w', 12, 2, 0);
 
 sp.print_spacer(40, "|");
 sp.print_separator(40, "-", "+");
 ```
 
-### Word‑wrap vs char‑wrap
+### Word-wrap vs char-wrap
 ```cpp
-// Word‑wrap keeps words together where possible.
+// Word-wrap keeps words together where possible.
 sp.print("this is a pretty long centered text. i am curious if wrapping is working well",
-         "|", 'c', 'w', 12, 0, 0);
+         kCRLF, "|", 'c', 'w', 12, 0, 0);
 
-// Char‑wrap splits at exact width.
+// Char-wrap splits at exact width.
 sp.print("this is a pretty long centered text. i am curious if wrapping is working well",
-         "|", 'c', 'c', 12, 0, 0);
+         kCRLF, "|", 'c', 'c', 12, 0, 0);
 ```
 
 ### printf with framing
 ```cpp
-sp.printf("|", 'l', 'w', 10, 0, 0, kCRLF, "fmt %d %s", 7, "seven");
+sp.printf_fmt("|", kCRLF, 'l', 'w', 10, 0, 0, "fmt %d %s", 7, "seven");
+
+// Or use defaults via printf()
+sp.printf("value=%d name=%s", 42, "ok");
 ```
 
 ### Integer input with bounds
@@ -148,46 +153,36 @@ if (sp.read_line_with_timeout(line, 2000)) {
 ## API reference
 
 ### Lifecycle
-- **`SerialPort(ModuleController& controller)`**  
-  Registers the module and CLI command. No I/O yet.
-- **`void begin_routines_required(const ModuleConfig& cfg)`**  
-  Sets TX/RX buffer sizes, starts `Serial` at `baud_rate`, then short delay.
-- **`void loop()`**  
-  Echoes bytes. Ignores `'\r'`. On `'\n'` or buffer end, terminates and marks a line ready.
-- **`void reset(bool verbose=false, bool do_restart=true)`**  
-  Clears input state and calls base `Module::reset`.
+- **`SerialPort(ModuleController& controller)`** — Registers the module and CLI command.
+- **`void begin_routines_required(const ModuleConfig& cfg)`** — Sets TX/RX sizes, starts `Serial`, small delay.
+- **`void loop()`** — Echoes bytes; `'\r'` ignored; on `'\n'` or buffer end, terminates and marks a line ready.
+- **`void reset(bool verbose=false, bool do_restart=true)`** — Clears input state and calls base `Module::reset`.
 
 ### Output — raw
-- **`void print_raw(string_view message)`**  
-  Writes bytes as‑is.
-- **`void println_raw(string_view message)`**  
-  Writes bytes then `CRLF`.
-- **`void printf_raw(const char* fmt, ...)`**  
-  Uses `vsnprintf`. If no format specs are present, writes the string verbatim.
+- **`void print_raw(std::string_view message)`** — Writes bytes as-is.
+- **`void println_raw(std::string_view message)`** — Writes bytes then `CRLF`.
+- **`void printf_raw(const char* fmt, ...)`** — `vsnprintf`, writes buffer. If no format specs, writes verbatim.
 
 ### Output — boxed
-- **`void print(string_view message = {}, string_view edge_character = {}, char align='l', char wrap='w', uint16_t width=0, uint16_t ml=0, uint16_t mr=0, string_view end = kCRLF)`**  
+- **`void print(std::string_view message = {}, std::string_view end = kCRLF, std::string_view edge_character = {}, char align='l', char wrap='w', uint16_t width=0, uint16_t ml=0, uint16_t mr=0)`**  
   Splits on `'\n'`. If `width>0` then wrap by word (`wrap='w'`) or by character (`wrap='c'`). Alignment applies only when `width>0`. Writes `end` after the last fragment and `CRLF` between fragments.
-- **`void printf(string_view edge, char align, char wrap, uint16_t width, uint16_t ml, uint16_t mr, string_view end, const char* fmt, ...)`**  
+- **`void printf_fmt(std::string_view edge, std::string_view end, char align, char wrap, uint16_t width, uint16_t ml, uint16_t mr, const char* fmt, ...)`**  
   Formats then delegates to `print`.
-- **`void print_separator(uint16_t total_width=50, string_view fill="-", string_view edge="+")`**  
+- **`void printf(const char* fmt, ...)`**  
+  Formats then calls `print(msg)` using all defaults.
+- **`void print_separator(uint16_t total_width=50, std::string_view fill="-", std::string_view edge="+")`**  
   Prints `edge + fill*(total_width-2*edge.size) + edge` when space allows.
-- **`void print_spacer(uint16_t total_width=50, string_view edge="|")`**  
+- **`void print_spacer(uint16_t total_width=50, std::string_view edge="|")`**  
   Prints an empty framed line of `total_width` with `edge` characters.
-- **`void print_header(string_view message, uint16_t total_width=50, string_view edge="|", string_view cross_edge="+", string_view sep_fill="-")`**  
-  Prints a separator, then each `\\sep`‑separated part centered within the inner width, each followed by the same separator.
+- **`void print_header(std::string_view message, uint16_t total_width=50, std::string_view edge="|", std::string_view cross_edge="+", std::string_view sep_fill="-")`**  
+  Prints a separator, then each `\\sep`-separated part centered within the inner width, each followed by the same separator.
 
 ### Input — lines
-- **`bool has_line() const`**  
-  True if a full line is ready.
-- **`string read_line()`**  
-  Returns the line and clears readiness; empty string if none.
-- **`void flush_input()`**  
-  Drains device and clears state.
-- **`bool read_line_with_timeout(string& out, uint32_t timeout_ms)`**  
-  Calls `loop()` until a line arrives or the timeout elapses (`0` = no timeout).
-- **`void write_line_crlf(string_view s)`**  
-  Writes `s` and `CRLF`.
+- **`bool has_line() const`** — True if a full line is ready.
+- **`std::string read_line()`** — Returns the line and clears readiness; empty string if none.
+- **`void flush_input()`** — Drains device and clears state.
+- **`bool read_line_with_timeout(std::string& out, uint32_t timeout_ms)`** — Calls `loop()` until a line arrives or the timeout elapses (`0` = no timeout).
+- **`void write_line_crlf(std::string_view s)`** — Writes `s` and `CRLF`.
 
 ### Input — typed getters
 Shared behavior: prompt → iterate with optional timeout → validate → default on failure → optional success flag.
@@ -197,29 +192,27 @@ Shared behavior: prompt → iterate with optional timeout → validate → defau
   - `template <typename T> T get_integral(...)` — integer parsing and range enforcement.
 
 - **Concrete**
-  - `string  get_string(prompt, min_length, max_length, retry_count, timeout_ms, default_value, success_sink)`  
-    Accepts length in `[min_length..max_length]`. If `max_length==0`, uses `INPUT_BUFFER_SIZE-1`.
-  - `int get_int(...)`, `uint8_t get_uint8(...)`, `uint16_t get_uint16(...)`, `uint32_t get_uint32(...)`  
-    Base‑10 parsing. Enforce `[min..max]`.
-  - `float get_float(prompt, min_value, max_value, retry_count, timeout_ms, default_value, success_sink)`  
-    Parses with `strtod`. Rejects NaN and trailing junk. Enforces range.
-  - `bool get_yn(prompt, retry_count, timeout_ms, default_value, success_sink)`  
-    Accepts `y/yes/1/true` or `n/no/0/false` (case‑insensitive).
+  - `std::string get_string(prompt, min_length, max_length, retry_count, timeout_ms, default_value, success_sink)` — Accepts length in `[min_length..max_length]`. If `max_length==0`, uses `INPUT_BUFFER_SIZE-1`.
+  - `int get_int(...)`, `uint8_t get_uint8(...)`, `uint16_t get_uint16(...)`, `uint32_t get_uint32(...)` — Base-10 parsing. Enforce `[min..max]`.
+  - `float get_float(prompt, min_value, max_value, retry_count, timeout_ms, default_value, success_sink)` — Parses with `strtod`. Rejects NaN and trailing junk. Enforces range.
+  - `bool get_yn(prompt, retry_count, timeout_ms, default_value, success_sink)` — Accepts `y/yes/1/true` or `n/no/0/false` (case-insensitive).
 
 ---
 
 ## Notes and limits
-- Input buffer: **255 bytes**. On overflow the line is force‑ended.
+- Input buffer: **255 bytes**. On overflow the line is force-ended.
 - `'\r'` ignored. `'\n'` commits the line.
-- Wrapping counts **bytes**, not glyphs. Non‑ASCII or multi‑byte UTF‑8 may not align visually.
-- Word‑wrap uses ASCII `isspace` semantics.
+- Wrapping counts **bytes**, not glyphs. Non-ASCII or multi-byte UTF-8 may not align visually.
+- Word-wrap uses ASCII `isspace` semantics.
 - `message_width==0` disables both wrapping and padding; alignment is bypassed.
 
 ---
 
 ## Changelog
-- **Added**: `wrap_mode` to `print` and `printf`. `'w'` = word‑wrap (default). `'c'` = character‑wrap.
-- **Default behavior change**: prints now wrap on **words** when `message_width>0`.
+- **Changed**: `print` parameter order is now `(message, end, edge, align, wrap, width, ml, mr)`.
+- **Added**: `printf_fmt(edge, end, align, wrap, width, ml, mr, fmt, ...)` for framed printf.
+- **Added**: `printf(fmt, ...)` convenience that uses `print()` defaults.
+- **Default behavior**: When `message_width>0`, word-wrap is used unless `'c'` is specified.
 
 ---
 
