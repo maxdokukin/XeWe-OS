@@ -68,54 +68,54 @@ public:
     string                      get_string                  (string_view            prompt          = {},
                                                              const uint16_t         min_length      = 0,
                                                              const uint16_t         max_length      = 0,
-                                                             const uint16_t         retry_count     = 1,
-                                                             const uint32_t         timeout_ms      = 10000,
+                                                             const uint16_t         retry_count     = 0,
+                                                             const uint32_t         timeout_ms      = 0,
                                                              string_view            default_value   = {},
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
     int                         get_int                     (string_view            prompt          = {},
                                                              const int              min_value       = numeric_limits<int>::min(),
                                                              const int              max_value       = numeric_limits<int>::max(),
-                                                             const uint16_t         retry_count     = 1,
-                                                             const uint32_t         timeout_ms      = 10000,
+                                                             const uint16_t         retry_count     = 0,
+                                                             const uint32_t         timeout_ms      = 0,
                                                              const int              default_value   = 0,
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
     uint8_t                     get_uint8                   (string_view            prompt          = {},
                                                              const uint8_t          min_value       = numeric_limits<uint8_t>::min(),
                                                              const uint8_t          max_value       = numeric_limits<uint8_t>::max(),
-                                                             const uint16_t         retry_count     = 1,
-                                                             const uint32_t         timeout_ms      = 10000,
+                                                             const uint16_t         retry_count     = 0,
+                                                             const uint32_t         timeout_ms      = 0,
                                                              const uint8_t          default_value   = 0,
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
     uint16_t                    get_uint16                  (string_view            prompt          = {},
                                                              const uint16_t         min_value       = numeric_limits<uint16_t>::min(),
                                                              const uint16_t         max_value       = numeric_limits<uint16_t>::max(),
-                                                             const uint16_t         retry_count     = 1,
-                                                             const uint32_t         timeout_ms      = 10000,
+                                                             const uint16_t         retry_count     = 0,
+                                                             const uint32_t         timeout_ms      = 0,
                                                              const uint16_t         default_value   = 0,
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
     uint32_t                    get_uint32                  (string_view            prompt          = {},
                                                              const uint32_t         min_value       = numeric_limits<uint32_t>::min(),
                                                              const uint32_t         max_value       = numeric_limits<uint32_t>::max(),
-                                                             const uint16_t         retry_count     = 1,
-                                                             const uint32_t         timeout_ms      = 10000,
+                                                             const uint16_t         retry_count     = 0,
+                                                             const uint32_t         timeout_ms      = 0,
                                                              const uint32_t         default_value   = 0,
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
     float                       get_float                   (string_view       prompt          = {},
                                                              const float            min_value       = -numeric_limits<float>::infinity(),
                                                              const float            max_value       = numeric_limits<float>::infinity(),
-                                                             const uint16_t         retry_count     =1,
-                                                             const uint32_t         timeout_ms      =10000,
-                                                             const float            default_value   =0.0f,
+                                                             const uint16_t         retry_count     = 0,
+                                                             const uint32_t         timeout_ms      = 0,
+                                                             const float            default_value   = 0.0f,
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
     bool                        get_yn                      (string_view            prompt          = {},
-                                                             const uint16_t         retry_count     = 1,
-                                                             const uint32_t         timeout_ms      = 10000,
+                                                             const uint16_t         retry_count     = 0,
+                                                             const uint32_t         timeout_ms      = 0,
                                                              const bool             default_value   = false,
                                                              optional<reference_wrapper<bool>> success_sink = nullopt
                                                             );
@@ -176,7 +176,9 @@ inline Ret SerialPort::get_core (string_view prompt,
         if (success_sink.has_value()) success_sink->get() = ok;
     };
 
-    if (!prompt.empty()) this->print_raw(prompt);
+    flush_input();
+
+    if (!prompt.empty()) this->println_raw(prompt);
 
     const bool infinite = (retry_count == 0);
     uint16_t attempts_left = retry_count;
