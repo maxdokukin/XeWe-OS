@@ -115,6 +115,74 @@ inline std::vector<std::string> wrap_fixed(std::string_view s, size_t width) {
     return out;
 }
 
+inline std::vector<std::string> wrap_words(std::string_view s, size_t width) {
+    std::vector<std::string> out;
+    if (width == 0) {
+        out.emplace_back(s);
+        return out;
+    }
+    auto is_space = [](unsigned char c){ return std::isspace(c) != 0; };
+
+    std::string line;
+    line.reserve(width);
+
+    size_t i = 0, n = s.size();
+    while (i < n) {
+        // skip leading spaces between words
+        while (i < n && is_space(static_cast<unsigned char>(s[i]))) ++i;
+        if (i >= n) break;
+
+        // take next word [i, j)
+        size_t j = i;
+        while (j < n && !is_space(static_cast<unsigned char>(s[j]))) ++j;
+        std::string_view word = s.substr(i, j - i);
+        i = j;
+
+        // place word
+        if (line.empty()) {
+            if (word.size() <= width) {
+                line.assign(word);
+            } else {
+                // hard-split long word
+                size_t k = 0;
+                while (k < word.size()) {
+                    size_t take = std::min(width, word.size() - k);
+                    out.emplace_back(word.substr(k, take));
+                    k += take;
+                }
+            }
+        } else {
+            if (line.size() + 1 + word.size() <= width) {
+                line.push_back(' ');
+                line.append(word);
+            } else {
+                out.emplace_back(line);
+                line.clear();
+                if (word.size() <= width) {
+                    line.assign(word);
+                } else {
+                    size_t k = 0;
+                    while (k < word.size()) {
+                        size_t take = std::min(width, word.size() - k);
+                        // first chunk goes on a fresh line; others flush immediately
+                        if (line.empty()) {
+                            line.assign(word.substr(k, take));
+                        } else {
+                            out.emplace_back(line);
+                            line.assign(word.substr(k, take));
+                        }
+                        k += take;
+                    }
+                }
+            }
+        }
+    }
+    if (!line.empty()) out.emplace_back(std::move(line));
+    if (out.empty()) out.emplace_back(std::string{}); // preserve empty input semantics
+    return out;
+}
+
+
 // Align a short string within a field of "width" using 'l', 'r', or 'c'.
 // If width == 0, alignment pads are zero.
 inline std::string align_into(std::string_view s, size_t width, char align) {

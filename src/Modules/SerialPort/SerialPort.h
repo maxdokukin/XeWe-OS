@@ -11,16 +11,16 @@
 #pragma once
 
 #include "../../Module/Module.h"
-#include <optional>
-#include <functional>
-#include <cstdint>
-#include <limits>
-#include <cstdarg>
-#include <cstdio>
-#include <vector>
-#include <limits>
-#include <type_traits>
-#include <cstdlib>   // strtod
+//#include <optional>
+//#include <functional>
+//#include <cstdint>
+//#include <limits>
+//#include <cstdarg>
+//#include <cstdio>
+//#include <vector>
+//#include <limits>
+//#include <type_traits>
+//#include <cstdlib>
 
 struct SerialPortConfig : public ModuleConfig {
     unsigned long baud_rate = 9600;
@@ -40,6 +40,7 @@ public:
     void                        print                       (string_view            message                 = {},
                                                              string_view            edge_character          = {},
                                                              const char             text_align              = 'l',
+                                                             const char             wrap_mode               = 'w',
                                                              const uint16_t         message_width           = 0,
                                                              const uint16_t         margin_l                = 0,
                                                              const uint16_t         margin_r                = 0,
@@ -47,12 +48,13 @@ public:
                                                             );
     void                        printf                      (string_view            edge_character,
                                                              const char             text_align,
+                                                             const char             wrap_mode,
                                                              const uint16_t         message_width,
                                                              const uint16_t         margin_l,
                                                              const uint16_t         margin_r,
                                                              string_view            end,
                                                              const char*            fmt,
-                                                                                    ...
+                                                             ...
                                                             );
     void                        print_separator             (const uint16_t         total_width             = 50,
                                                              string_view            fill                    = "-",
@@ -63,7 +65,7 @@ public:
                                                             );
     void                        print_header                (string_view            message,
                                                              const uint16_t         total_width             = 50,
-                                                             string_view            edge_character          = {},
+                                                             string_view            edge_character          = "|",
                                                              string_view            cross_edge_character    = "+",
                                                              string_view            sep_fill                = "-"
                                                             );
