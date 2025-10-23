@@ -181,6 +181,14 @@ void SerialPort::test() {
     printf_raw("[TEST] out: value=%lu, success=%s\r\n", static_cast<unsigned long>(v32), succ ? "true" : "false");
     done("get_uint32");
 
+    banner("get_float");
+    printf_raw("[TEST] in : prompt=\"float?\", range=[-10.5..10.5], retries=1, timeout=0, default=3.14\r\n");
+    flush_input();
+    succ = false;
+    float vf = get_float("float?", -10.5f, 10.5f, 1, 0, 3.14f, std::ref(succ));
+    printf_raw("[TEST] out: value=%g, success=%s\r\n", static_cast<double>(vf), succ ? "true" : "false");
+    done("get_float");
+
     banner("get_string");
     printf_raw("[TEST] in : prompt=\"str?\", len=[3..10], retries=1, timeout=0, default=\"xx\"\r\n");
     flush_input();
@@ -204,7 +212,6 @@ void SerialPort::test() {
     b = get_yn("yn?", 1, 10000, false, std::ref(succ));
     printf_raw("[TEST] out: value=%s, success=%s\r\n", b ? "true" : "false", succ ? "true" : "false");
     done("get_yn");
-
 
     // SUMMARY
     banner("summary");
@@ -455,7 +462,7 @@ T SerialPort::get_integral(string_view prompt,
         return true;
     };
 
-    return sp_get_core<T>(prompt, retry_count, timeout_ms, default_value,
+    return get_core<T>(prompt, retry_count, timeout_ms, default_value,
                           success_sink, "> ", /*crlf*/false, checker);
 }
 
@@ -483,7 +490,7 @@ std::string SerialPort::get_string(string_view prompt,
         return true;
     };
 
-    return sp_get_core<string>(prompt, retry_count, timeout_ms, string(default_value),
+    return get_core<string>(prompt, retry_count, timeout_ms, string(default_value),
                                success_sink, "> ", /*crlf*/false, checker);
 }
 
@@ -501,7 +508,7 @@ bool SerialPort::get_yn(string_view prompt,
         return false;
     };
 
-    return sp_get_core<bool>(prompt, retry_count, timeout_ms, default_value,
+    return get_core<bool>(prompt, retry_count, timeout_ms, default_value,
                              success_sink, "(y/n) > ", /*crlf*/true, checker);
 }
 
@@ -538,7 +545,7 @@ float SerialPort::get_float(string_view prompt,
         return true;
     };
 
-    return sp_get_core<float>(prompt, retry_count, timeout_ms, default_value,
+    return get_core<float>(prompt, retry_count, timeout_ms, default_value,
                               success_sink, "> ", /*crlf*/false, checker);
 }
 

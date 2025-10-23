@@ -122,7 +122,7 @@ private:
 
     // Shared input core kept private so it can access private I/O
     template <typename Ret, typename CheckFn>
-    Ret                         sp_get_core                 (std::string_view prompt,
+    Ret                         get_core                    (std::string_view prompt,
                                                              uint16_t retry_count,
                                                              uint32_t timeout_ms,
                                                              Ret default_value,
@@ -148,20 +148,20 @@ private:
 };
 
 template <typename Ret, typename CheckFn>
-inline Ret SerialPort::sp_get_core(std::string_view prompt,
-                                   uint16_t retry_count,
-                                   uint32_t timeout_ms,
-                                   Ret default_value,
-                                   std::optional<std::reference_wrapper<bool>> success_sink,
-                                   std::string_view iter_prompt,
-                                   bool iter_prompt_crlf,
-                                   CheckFn&& checker)
+inline Ret SerialPort::get_core (std::string_view prompt,
+                                 uint16_t retry_count,
+                                 uint32_t timeout_ms,
+                                 Ret default_value,
+                                 std::optional<std::reference_wrapper<bool>> success_sink,
+                                 std::string_view iter_prompt,
+                                 bool iter_prompt_crlf,
+                                 CheckFn&& checker)
 {
     auto set_success = [&](bool ok){
         if (success_sink.has_value()) success_sink->get() = ok;
     };
 
-    if (!prompt.empty()) this->println_raw(prompt);
+    if (!prompt.empty()) this->print_raw(prompt);
 
     const bool infinite = (retry_count == 0);
     uint16_t attempts_left = retry_count;
